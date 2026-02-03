@@ -7,11 +7,7 @@
  *
  * */
 enum LIBDICE_OPCODE_ {
-	/** 
-	 * @brief end of programme
-	 * @details nop
-	 * */
-	LIBDICE_OPCODE_EOP,
+
 
 	/** 
 	 * @brief do nothing.
@@ -105,11 +101,16 @@ enum LIBDICE_OPCODE_ {
 
 	/**
 	 * @brief jumps to wanted location.
-	 * @details jmp dst
+	 * @details jmp nref dst
 	 * */
 	LIBDICE_OPCODE_JMP,
 	LIBDICE_OPCODE_JMPA,
 	LIBDICE_OPCODE_JMPN,
+
+	/**
+	 * @brief jumps to wanted location when condition is 0.
+	 * @details jmpz nref cnd nref dst
+	 * */
 	LIBDICE_OPCODE_JMPZ,
 	LIBDICE_OPCODE_JMPZA,
 	LIBDICE_OPCODE_JMPZN,
@@ -265,10 +266,41 @@ enum LIBDICE_OPCODE_ {
 	LIBDICE_OPCODE_DEF,
 	LIBDICE_OPCODE_UNDEF,
 
+	/**
+	 * @brief	puts string in terminal
+	 * @details	puts nref ptr
+	 * */
 	LIBDICE_OPCODE_PUTS,
+
+	/**
+	 * puts		signed integer in terminal
+	 * @details	puti nref val
+	 * */
 	LIBDICE_OPCODE_PUTI,
+
+	/**
+	 * puts		unsigned integer in terminal
+	 * @details	putu nref val
+	 * */
+	LIBDICE_OPCODE_PUTU,
+
+	/**
+	 * puts		unsigned character in terminal
+	 * @details	putc nref val
+	 * */
+	LIBDICE_OPCODE_PUTC,
+
+	/**
+	 * putf		unsigned character in terminal
+	 * @details	putc nref val
+	 * */
 	LIBDICE_OPCODE_PUTF,
-	LIBDICE_OPCODE_END
+
+	/** 
+	 * @brief end of programme
+	 * @details nop
+	 * */
+	LIBDICE_OPCODE_EOP = 0x7FFFFFFF
 };
 
 #endif

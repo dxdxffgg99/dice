@@ -9,6 +9,8 @@
 #include "./libdice/abi.h"
 
 enum LIBDICE_CTX_ {
+	/** @brief end of programme */
+	LIBDICE_CTX_EOP,
 	LIBDICE_CTX_GOOD,
 	LIBDICE_CTX_PC_AFTER_PROGRAMME,
 	LIBDICE_CTX_LOOKUP_LEAK,
@@ -16,12 +18,8 @@ enum LIBDICE_CTX_ {
 	LIBDICE_CTX_DEREFINVAL,
 	/** @brief operation is invalid */
 	LIBDICE_CTX_OPINVAL,
-	/** @brief end of programme */
-	LIBDICE_CTX_EOP = 0x7FFFFFFF
+	LIBDICE_CTX_STRINVAL
 };
-
-/** @see enum LIBDICE_CTX_ */
-typedef libdice_word_t E_LIBDICE_CTX_t;
 
 typedef struct {
 	E_LIBDICE_CTX_t	m_state;
@@ -31,11 +29,9 @@ typedef struct {
 	libdice_word_t	m_lookup_used;
 } libdice_ctx;
 
-typedef libdice_ctx* ae2f_restrict h_libdice_ctx;
-
-
 ae2f_extern DICECALL libdice_ctx libdice_run_one(
 		libdice_ctx					c_ctx,
+		const libdice_put_interface* ae2f_restrict	rd_interface_put,
 		const libdice_word_t* ae2f_restrict const 	rd_programme,
 		const libdice_word_t				c_num_programme,
 		libdice_word_t* ae2f_restrict const		rdwr_ram,
@@ -46,6 +42,7 @@ ae2f_extern DICECALL libdice_ctx libdice_run_one(
 
 ae2f_extern DICECALL libdice_ctx libdice_run(
 		libdice_ctx					c_ctx,
+		const libdice_put_interface* ae2f_restrict	rd_interface_put,
 		const libdice_word_t* ae2f_restrict const 	rd_programme,
 		const libdice_word_t				c_num_programme,
 		libdice_word_t* ae2f_restrict const		rdwr_ram,

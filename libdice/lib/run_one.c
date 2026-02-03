@@ -8,8 +8,6 @@ typedef struct {
 	libdice_ctx	m_ctx;
 } __result;
 
-
-
 #define	__strcount32_0(c_str)	(!!(	0x000000FF & c_str))
 #define	__strcount32_1(c_str)	((!!(	0x0000FF00 & c_str)) & __strcount32_0(c_str))
 #define	__strcount32_2(c_str)	((!!(	0x00FF0000 & c_str)) & __strcount32_1(c_str))
@@ -17,6 +15,23 @@ typedef struct {
 #define	__strcount32(c_str)	((libdice_word_t)(			\
 			__strcount32_0(c_str) + __strcount32_1(c_str)		\
 			+ __strcount32_2(c_str) + __strcount32_3(c_str)))
+
+static	ae2f_inline ae2f_ccpure libdice_word_t __strcount(
+		const libdice_word_t*	ae2f_restrict	rd_mem,
+		const libdice_word_t			c_num_mem,
+		const libdice_word_t			c_pad_str
+		) 
+{
+	libdice_word_t	COUNT = c_pad_str;
+	while(
+			(COUNT < c_num_mem || ae2f_unexpected((COUNT = 0xFFFFFFFF) & 0))
+			&& __strcount32(rd_mem[COUNT]) & 4) {}
+
+	return COUNT == 0xFFFFFFFF 
+		? COUNT 
+		: ((COUNT << 2) + __strcount32(rd_mem[COUNT]) - c_pad_str)
+		;
+}
 
 static  ae2f_inline ae2f_ccpure libdice_word_t __strequal2(
 		const libdice_word_t* ae2f_restrict	rd_mem,
@@ -315,6 +330,7 @@ static ae2f_inline ae2f_ccconst __result __two_const(
 
 DICEIMPL libdice_ctx libdice_run_one(
 		libdice_ctx					c_ctx,
+		const libdice_put_interface* ae2f_restrict	rd_interface_put,
 		const libdice_word_t* ae2f_restrict const 	rd_programme,
 		const libdice_word_t				c_num_programme,
 		libdice_word_t* ae2f_restrict const		rdwr_ram,
@@ -326,8 +342,14 @@ DICEIMPL libdice_ctx libdice_run_one(
 	assert(rd_programme);
 	assert(rdwr_ram);
 	assert(rdwr_lookup);
+	assert(rd_interface_put);
+	assert(rd_interface_put->m_pfn_putc);
+	assert(rd_interface_put->m_pfn_puts);
+	assert(rd_interface_put->m_pfn_putf);
+	assert(rd_interface_put->m_pfn_putu);
+	assert(rd_interface_put->m_pfn_puti);
 
-	ae2f_unexpected_but_if(c_ctx.m_state) { return c_ctx; }
+	ae2f_unexpected_but_if(c_ctx.m_state != LIBDICE_CTX_GOOD) { return c_ctx; }
 	ae2f_expected_but_else(c_ctx.m_pc < c_num_programme) {
 		c_ctx.m_state = LIBDICE_CTX_PC_AFTER_PROGRAMME;
 		return c_ctx;
@@ -345,14 +367,13 @@ DICEIMPL libdice_ctx libdice_run_one(
 		libdice_word_t	O1;
 
 		default: break;
-
 #define		__deref(O0, c_pad)						\
-			 ae2f_expected_but_else(c_ctx.m_pc + (c_pad) < c_num_programme)	\
-			 break;							\
+			 ae2f_expected_but_else(c_ctx.m_pc + (c_pad) < c_num_programme)		\
+			 { c_ctx.m_state = LIBDICE_CTX_PC_AFTER_PROGRAMME; return c_ctx; }	\
 			 COUNT = rd_programme[c_ctx.m_pc + (c_pad)];		\
-			 O0 = c_ctx.m_pc + (c_pad) + 1;				\
-			 while(COUNT-- && O0 < c_num_ram) {			\
-				 O0 = O0[rdwr_ram];				\
+			 (O0) = rd_programme[c_ctx.m_pc + (c_pad) + 1];		\
+			 while(COUNT-- && (O0) < c_num_ram) {			\
+				 (O0) = (O0)[rdwr_ram];				\
 			 }							\
 			 ae2f_unexpected_but_if(COUNT + 1) {			\
 				 c_ctx.m_state = LIBDICE_CTX_DEREFINVAL;	\
@@ -360,14 +381,20 @@ DICEIMPL libdice_ctx libdice_run_one(
 			 }
 
 		case LIBDICE_OPCODE_SET:
-			 ae2f_expected_but_else(c_ctx.m_pc + 2 < c_num_programme)
-				 break;
-			 ae2f_expected_but_else(c_ctx.m_pc + 1 < c_num_ram) {
-				 c_ctx.m_state = LIBDICE_CTX_DEREFINVAL;
+			 ae2f_expected_but_else(c_ctx.m_pc + 2 < c_num_programme) {
+				 c_ctx.m_state = LIBDICE_CTX_PC_AFTER_PROGRAMME;
+				 return c_ctx;
+			 }
+			 ae2f_expected_but_else(c_ctx.m_pc + 1 < c_num_programme) {
+				 c_ctx.m_state = LIBDICE_CTX_PC_AFTER_PROGRAMME;
+				 return c_ctx;
+			 }
+			 ae2f_expected_but_else(rd_programme[c_ctx.m_pc + 1] < c_num_ram) {
+				 c_ctx.m_state = LIBDICE_CTX_PC_AFTER_PROGRAMME;
 				 return c_ctx;
 			 }
 
-			 c_ctx.m_pc[rdwr_ram + 1] = c_ctx.m_pc[rd_programme + 2];
+			 rd_programme[c_ctx.m_pc + 1][rdwr_ram] = c_ctx.m_pc[rd_programme + 2];
 			 c_ctx.m_pc += 3;
 			 return c_ctx;
 		case LIBDICE_OPCODE_NOP:
@@ -452,7 +479,6 @@ DICEIMPL libdice_ctx libdice_run_one(
 			 rdwr_ram[c_ctx.m_pc[rd_programme + 1]] = RESULT.m_r0;
 			 return RESULT.m_ctx;
 
-			 /*** jmpc nref cond nref whr */
 		case LIBDICE_OPCODE_JMPZ:
 		case LIBDICE_OPCODE_JMPZA:
 		case LIBDICE_OPCODE_JMPZN:
@@ -468,7 +494,66 @@ DICEIMPL libdice_ctx libdice_run_one(
 
 			 return RESULT.m_ctx;
 
+		case LIBDICE_OPCODE_PUTC:
+			 __deref(O0, 1);
 
+			 c_ctx.m_state = rd_interface_put->m_pfn_putc(
+					 (int)O0
+					 , rd_interface_put->m_data
+					 );
+
+			 c_ctx.m_pc += 3; 
+			 return c_ctx;
+
+
+		case LIBDICE_OPCODE_PUTI:
+			 __deref(O0, 1);
+
+			 c_ctx.m_state = rd_interface_put->m_pfn_puti(
+					 (int)O0
+					 , rd_interface_put->m_data
+					 );
+
+			 c_ctx.m_pc += 3;
+			 return c_ctx;
+
+		case LIBDICE_OPCODE_PUTS:
+			 __deref(O0, 1);
+
+			 ae2f_unexpected_but_if(0xFFFFFFFF == __strcount(
+					 rdwr_ram
+					 , c_num_ram
+					 , O0
+					 ))
+			 {
+				 c_ctx.m_state = LIBDICE_CTX_STRINVAL;
+				 return c_ctx;
+			 }
+
+			 c_ctx.m_state = rd_interface_put->m_pfn_puts(
+					 rdwr_ram + O0
+					 , rd_interface_put->m_data
+					 );
+
+			 c_ctx.m_pc += 3;
+			 return c_ctx;
+
+		case LIBDICE_OPCODE_PUTF:
+			 {
+				 union { 
+					 libdice_word_t		m_u;
+					 float			m_f;
+				 } UF32;
+				 __deref(UF32.m_u, 1);
+
+				 c_ctx.m_state = rd_interface_put->m_pfn_putf(
+						 UF32.m_f
+						 , rd_interface_put->m_data
+						 );
+
+				 c_ctx.m_pc += 3;
+				 return c_ctx;
+			 }
 	}
 
 	c_ctx.m_state = LIBDICE_CTX_OPINVAL;
