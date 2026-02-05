@@ -549,7 +549,6 @@ DICEIMPL libdice_ctx libdice_run_one(
 
 		ae2f_unexpected_but_if(c_ctx.m_lookup_used + LIBDICE_LOOKUP_SECTION_LEN > c_num_lookup)
 		{
-			c_ctx.m_pc += 3;
 			c_ctx.m_state = LIBDICE_CTX_LOOKUP_LEAK;
 			return c_ctx;
 		}
@@ -559,13 +558,11 @@ DICEIMPL libdice_ctx libdice_run_one(
 		key_len = __strcount(rdwr_ram, c_num_ram, O0);
 		if (key_len == 0xFFFFFFFF)
 		{
-			c_ctx.m_pc += 3;
 			c_ctx.m_state = LIBDICE_CTX_STRINVAL;
 			return c_ctx;
 		}
-		else if (key_len > LIBDICE_LOOKUP_KEY_MAX_LEN || key_len < LIBDICE_LOOKUP_KEY_MIN_LEN)
+		else if (key_len > LIBDICE_LOOKUP_KEY_MAX_LEN)
 		{
-			c_ctx.m_pc += 3;
 			c_ctx.m_state = LIBDICE_CTX_KEYLENINVAL;
 			return c_ctx;
 		}
@@ -588,12 +585,11 @@ DICEIMPL libdice_ctx libdice_run_one(
 			}
 
 			/* found same key */
-			c_ctx.m_state = LIBDICE_CTX_KEY_ALREADY_EXIST;
+			c_ctx.m_pc += 3;
 			return c_ctx;
 		}
 
 		rdwr_lookup[c_ctx.m_lookup_used] = key_len;
-		rdwr_lookup[c_ctx.m_lookup_used + 1] = 0;
 
 		for (i = 0; i < key_len; i++)
 		{
@@ -602,6 +598,7 @@ DICEIMPL libdice_ctx libdice_run_one(
 		c_ctx.m_lookup_used += LIBDICE_LOOKUP_SECTION_LEN;
 
 		c_ctx.m_pc += 3;
+		return c_ctx;
 	}
 
 	case LIBDICE_OPCODE_UNDEF:
@@ -612,23 +609,17 @@ DICEIMPL libdice_ctx libdice_run_one(
 		libdice_word_t j = 0;
 		libdice_word_t tmp_key_len = 0;
 
-		ae2f_unexpected_but_if(c_num_lookup < LIBDICE_LOOKUP_SECTION_LEN)
-		{
-			c_ctx.m_pc += 3;
-			c_ctx.m_state = LIBDICE_CTX_LOOKUP_LEAK;
-			return c_ctx;
-		}
+		assert(c_num_lookup >= LIBDICE_LOOKUP_SECTION_LEN);
 
 		__deref(O0, 1); /*pointer to key*/
 
 		key_len = __strcount(rdwr_ram, c_num_ram, O0);
 		if (key_len == 0xFFFFFFFF)
 		{
-			c_ctx.m_pc += 3;
 			c_ctx.m_state = LIBDICE_CTX_STRINVAL;
 			return c_ctx;
 		}
-		else if (key_len > LIBDICE_LOOKUP_KEY_MAX_LEN || key_len < LIBDICE_LOOKUP_KEY_MIN_LEN)
+		else if (key_len > LIBDICE_LOOKUP_KEY_MAX_LEN)
 		{
 			c_ctx.m_pc += 3;
 			c_ctx.m_state = LIBDICE_CTX_KEYLENINVAL;
@@ -657,7 +648,6 @@ DICEIMPL libdice_ctx libdice_run_one(
 		if (i == c_ctx.m_lookup_used)
 		{
 			c_ctx.m_pc += 3;
-			c_ctx.m_state = LIBDICE_CTX_KEY_NOT_EXIST;
 			return c_ctx;
 		}
 
