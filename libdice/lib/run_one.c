@@ -705,7 +705,7 @@ DICEIMPL libdice_ctx libdice_run_one(
 	case LIBDICE_OPCODE_IRAND:
 	{
 
-		ae2f_expected_but_else(c_ctx.m_pc + 2 < c_num_programme)
+		ae2f_expected_but_else(c_ctx.m_pc + 1 < c_num_programme)
 		{
 			c_ctx.m_state = LIBDICE_CTX_PC_AFTER_PROGRAMME;
 			return c_ctx;
@@ -717,7 +717,7 @@ DICEIMPL libdice_ctx libdice_run_one(
 			return c_ctx;
 		}
 
-		rdwr_ram[c_ctx.m_pc] = (libdice_word_t)rand();
+		rdwr_ram[c_ctx.m_pc + 1] = (libdice_word_t)rand();
 
 		c_ctx.m_pc += 2;
 		return c_ctx;
@@ -726,7 +726,7 @@ DICEIMPL libdice_ctx libdice_run_one(
 	{
 		libdice_type_literal tmp;
 
-		ae2f_expected_but_else(c_ctx.m_pc + 2 < c_num_programme)
+		ae2f_expected_but_else(c_ctx.m_pc + 1 < c_num_programme)
 		{
 			c_ctx.m_state = LIBDICE_CTX_PC_AFTER_PROGRAMME;
 			return c_ctx;
