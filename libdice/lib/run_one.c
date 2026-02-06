@@ -717,7 +717,7 @@ DICEIMPL libdice_ctx libdice_run_one(
 			return c_ctx;
 		}
 
-		rdwr_ram[c_ctx.m_pc + 1] = (libdice_word_t)rand();
+		rdwr_ram[rd_programme[c_ctx.m_pc + 1]] = (libdice_word_t)rand();
 
 		c_ctx.m_pc += 2;
 		return c_ctx;
@@ -740,7 +740,7 @@ DICEIMPL libdice_ctx libdice_run_one(
 
 		tmp.m_f32 = (float)rand() /  (float)INT32_MAX;
 				
-		rdwr_ram[c_ctx.m_pc + 1] = tmp.m_u32;
+		rdwr_ram[rd_programme[c_ctx.m_pc + 1]] = tmp.m_u32;
 
 		c_ctx.m_pc += 2;
 		return c_ctx;
