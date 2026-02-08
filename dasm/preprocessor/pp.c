@@ -1,4 +1,5 @@
 #include "pp.h"
+#include <dasm.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -135,6 +136,10 @@ static libdice_word_t libdasm_remove_comment(char *dst, const libdice_word_t c_d
 			break;
 		}
 
+		if (c=='\0') {
+			break;
+		}
+
 		if (emit) {
 			assert(dst_cnt+1 < c_dst_len);
 			dst[dst_cnt] = c;
@@ -142,7 +147,7 @@ static libdice_word_t libdasm_remove_comment(char *dst, const libdice_word_t c_d
 		}
 		libdasm_update_pp_state(state, c);
 		
-		if (c == '\n' || c=='\0') {
+		if (c == '\n') {
 			break;
 		}
 
@@ -184,12 +189,16 @@ static libdice_word_t libdasm_normalize_line(char *rdwr_dst, const libdice_word_
 		if (c!=' ' && c!='\n') {
 			has_non_whitespace = true;
 		}
+		
+		if (c=='\0') {
+			break;
+		}
 
 		assert(dst_cnt+1 < c_dst_len);
 		rdwr_dst[dst_cnt] = c;
 		dst_cnt++;
 
-		if (c == '\n' || c=='\0') {
+		if (c == '\n') {
 			break;
 		}
 	}
@@ -223,8 +232,11 @@ static libdice_word_t libdasm_remove_comments(char *rdwr_dst, const libdice_word
 		pc += tmp_read_len;
 	}
 
-	return dst_cnt;
+	assert(dst_cnt+1 <= c_dst_len);
+	rdwr_dst[dst_cnt] = '\0';
+	dst_cnt++;
 
+	return dst_cnt;
 }
 
 static libdice_word_t libdasm_normalize_lines(char *rdwr_dst, const libdice_word_t c_dst_len, const char *rd_src)
@@ -236,10 +248,6 @@ static libdice_word_t libdasm_normalize_lines(char *rdwr_dst, const libdice_word
 	const size_t c_src_len = strlen(rd_src)+1;
 
 	while (pc < c_src_len) {
-		tmp_read_len = 0;
-		tmp_write_len = 0;
-
-		
 		tmp_write_len = libdasm_normalize_line(rdwr_dst+dst_cnt, c_dst_len-dst_cnt, rd_src+pc, &tmp_read_len);
 		assert(dst_cnt + tmp_write_len <= c_dst_len);
 		assert(tmp_read_len > 0);
@@ -247,14 +255,18 @@ static libdice_word_t libdasm_normalize_lines(char *rdwr_dst, const libdice_word
 		pc += tmp_read_len;
 	}
 
+	assert(dst_cnt+1 <= c_dst_len);
+	rdwr_dst[dst_cnt] = '\0';
+	dst_cnt++;
+
 	return dst_cnt;
 }
 
 libdice_word_t libdasm_preprocess_programme(char *dst, const libdice_word_t c_dst_len, const char *rd_src)
 {
-	char *tmp_buf[2000] = {0,};
+	char tmp_buf[LIBDASM_PROGRAMME_MAX_LEN] = {0,};
 	libdice_word_t tmp_write_cnt = 0;
 
-	libdasm_remove_comments(tmp_buf, 2000, rd_src);
+	libdasm_remove_comments(tmp_buf, LIBDASM_PROGRAMME_MAX_LEN, rd_src);
 	return libdasm_normalize_lines(dst, c_dst_len, tmp_buf);
 }
