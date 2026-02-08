@@ -25,7 +25,6 @@ DICEIMPL libdice_word_t libdasm_assemble_line(
 	(void)rd_instruction;
 	(void)c_instruction_len;
 
-	char tmp_buf[LIBDASM_PROGRAMME_MAX_LEN] = {0,};
 	
 
 	return 0;
