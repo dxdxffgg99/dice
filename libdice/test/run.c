@@ -82,7 +82,7 @@ int main(void) {
 		/** ============================= */
 
 		/** set 0, ???; "hi" as uint32 */
-		LIBDICE_OPCODE_SET, 0, *(const libdice_word_t*)(const void*)"hi\0\0",
+		LIBDICE_OPCODE_SET, 0, (u32_least)'h' | ((u32_least)'i' << 8),
 		/** puts 0 */
 		LIBDICE_OPCODE_PUTS, 0, 0,
 		LIBDICE_OPCODE_EOP,

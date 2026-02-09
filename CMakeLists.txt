@@ -14,5 +14,12 @@ macro(ae3f_dice_addsubdir p)
 	endif()
 endmacro()
 
+macro(dice_addsubdir p)
+	if(NOT TARGET ${p})
+		add_subdirectory(${p})
+	endif()
+endmacro()
+
 ae3f_dice_addsubdir(libdice)
 ae3f_dice_addsubdir(dasm)
+dice_addsubdir(dice-server)

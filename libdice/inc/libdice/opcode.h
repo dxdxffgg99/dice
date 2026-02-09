@@ -273,9 +273,6 @@ enum LIBDICE_OPCODE_
 	 * */
 	LIBDICE_OPCODE_FLT,
 
-	LIBDICE_OPCODE_SAVE,
-	LIBDICE_OPCODE_LOAD,
-
 	/**
 	 * @brief	puts string in terminal
 	 * @details	puts nref ptr

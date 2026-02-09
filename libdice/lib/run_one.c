@@ -150,17 +150,17 @@ static ae2f_inline ae2f_ccconst __result __two_const(
 
 	__result RET;
 
-	RET.m_ctx = c_ctx;
-	/** opcode dst nref val nref val */
-	RET.m_ctx.m_pc += 6;
-	RET.m_r0 = 0;
-
 	union
 	{
 		float m_f32;
 		int_least32_t m_i32;
 		libdice_word_t m_u32;
 	} VAL0, VAL1;
+
+	RET.m_ctx = c_ctx;
+	/** opcode dst nref val nref val */
+	RET.m_ctx.m_pc += 6;
+	RET.m_r0 = 0;
 
 	switch (c_opcode)
 	{
