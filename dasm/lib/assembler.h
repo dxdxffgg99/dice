@@ -1,7 +1,7 @@
 #ifndef libdasm_assembler_h
 #define libdasm_assembler_h
 
-#include <parser/parser.h>
+#include "parser.h"
 
 
 

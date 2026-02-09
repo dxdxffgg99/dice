@@ -2,14 +2,10 @@
 
 #include <dasm.h>
 #include <libdice/opcode.h>
-#include <../preprocessor/pp.h>	/* TODO : fix relative path*/
-#include <dasm/keys.h>
-#include <assert.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-
-
+#include "pp.h"
+#include "tokenizer.h"
+#include "parser.h"
+#include "assembler.h"
 
 
 

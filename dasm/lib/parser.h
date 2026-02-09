@@ -12,7 +12,7 @@ struct libdasm_operand {
 };
 
 struct libdasm_parsed_line {
-	enum LIPDICE_OPCODE_ m_opcode;
+	enum LIBDICE_OPCODE_ m_opcode;
 	struct libdasm_operand m_operands[LIBDICE_OPERAND_MAX_CNT];
 	libdice_word_t m_operand_cnt;
 };
