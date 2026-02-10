@@ -128,7 +128,7 @@ static bool libdasm_insert_label(struct libdasm_label_table *rdwr_label_table, c
 		return false;
 	}
 
-	strcpy(rdwr_label_table->m_labels[rdwr_label_table->m_label_cnt].m_text, c_label);
+	strncpy(rdwr_label_table->m_labels[rdwr_label_table->m_label_cnt].m_text, c_label, LIBDASM_TOKEN_MAX_LEN);
 	rdwr_label_table->m_labels[rdwr_label_table->m_label_cnt].m_address = c_addr;
 	rdwr_label_table->m_label_cnt++;
 
@@ -161,7 +161,7 @@ static bool libdasm_label_programme(struct libdasm_label_table *rdwr_label_table
 		}
 	}
 
-	assert(0);	/* Couldn't find EOP */
+	/* Couldn't find EOP */
 	return false;
 }
 
@@ -196,19 +196,22 @@ static libdice_word_t libdasm_parse_operand(struct libdasm_operand *rdwr_operand
 			case LIBDASM_TOKEN_TYPE_IDENT:
 			{
 				libdice_word_t label_addr = 0;
+				
 				if (libdasm_get_label_address(rd_label_table, rd_token->m_text, &label_addr)) {
-					/* label */
-					if (snprintf(rdwr_operand->m_text, LIBDASM_TOKEN_MAX_LEN, "%u", label_addr) >= LIBDASM_TOKEN_MAX_LEN) {
+					/* This token is label */
+					int tmp = 0;
+					tmp = snprintf(rdwr_operand->m_text, LIBDASM_TOKEN_MAX_LEN, "%u", label_addr);
+					if (tmp >= LIBDASM_TOKEN_MAX_LEN || tmp<0) {
 						return LIBDASM_ERR_RET;
 					}
 					return 1;
 				}
-				/* opcode */
-				strcpy(rdwr_operand->m_text, rd_token->m_text);
+				/* This token is opcode */
+				strncpy(rdwr_operand->m_text, LIBDASM_TOKEN_MAX_LEN, rd_token->m_text);
 				return 1;
 			}
 			case LIBDASM_TOKEN_TYPE_NUMBER:
-				strcpy(rdwr_operand->m_text, rd_token->m_text);
+				strncpy(rdwr_operand->m_text, rd_token->m_text, LIBDASM_TOKEN_MAX_LEN);
 				return 1;
 			case LIBDASM_TOKEN_TYPE_LABEL:
 				/* label must be handled by  libdasm_parse_line. This means the label was placed in the middle of the line, not at the beginning*/
@@ -217,12 +220,18 @@ static libdice_word_t libdasm_parse_operand(struct libdasm_operand *rdwr_operand
 				/* Doesn't support string yet*/
 				return LIBDASM_ERR_RET;
 			case LIBDASM_TOKEN_TYPE_CHAR:
-				if (snprintf(rdwr_operand->m_text, LIBDASM_TOKEN_MAX_LEN, "%u", (unsigned)(unsigned char)rd_token->m_text[1]) >= LIBDASM_TOKEN_MAX_LEN) {
+			{
+				int tmp = 0;
+				tmp = snprintf(rdwr_operand->m_text, LIBDASM_TOKEN_MAX_LEN, "%u", (unsigned)(unsigned char)rd_token->m_text[1]);
+				if (tmp >= LIBDASM_TOKEN_MAX_LEN || tmp<0) {
 					return LIBDASM_ERR_RET;
 				}
 				return 1;
+			}
 			case LIBDASM_TOKEN_TYPE_OPERATOR:
-				if (snprintf(rdwr_operand->m_text, LIBDASM_TOKEN_MAX_LEN, "%u", (unsigned)strlen(rd_token->m_text)) >= LIBDASM_TOKEN_MAX_LEN) {
+				int tmp = 0;
+				tmp = snprintf(rdwr_operand->m_text, LIBDASM_TOKEN_MAX_LEN, "%u", (unsigned)strlen(rd_token->m_text));
+				if (tmp >= LIBDASM_TOKEN_MAX_LEN || tmp<0) {
 					return LIBDASM_ERR_RET;
 				}
 				return 1;
