@@ -207,7 +207,7 @@ static libdice_word_t libdasm_parse_operand(struct libdasm_operand *rdwr_operand
 					return 1;
 				}
 				/* This token is opcode */
-				strncpy(rdwr_operand->m_text, LIBDASM_TOKEN_MAX_LEN, rd_token->m_text);
+				strncpy(rdwr_operand->m_text, rd_token->m_text, LIBDASM_TOKEN_MAX_LEN);
 				return 1;
 			}
 			case LIBDASM_TOKEN_TYPE_NUMBER:
@@ -229,12 +229,14 @@ static libdice_word_t libdasm_parse_operand(struct libdasm_operand *rdwr_operand
 				return 1;
 			}
 			case LIBDASM_TOKEN_TYPE_OPERATOR:
+			{
 				int tmp = 0;
 				tmp = snprintf(rdwr_operand->m_text, LIBDASM_TOKEN_MAX_LEN, "%u", (unsigned)strlen(rd_token->m_text));
 				if (tmp >= LIBDASM_TOKEN_MAX_LEN || tmp<0) {
 					return LIBDASM_ERR_RET;
 				}
 				return 1;
+			}
 			case LIBDASM_TOKEN_TYPE_EOL:
 				return 0;
 			case LIBDASM_TOKEN_TYPE_EOP:
