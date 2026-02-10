@@ -2,6 +2,7 @@
 #define libdasm_tokenizer_h
 
 #include <libdice/type.h>
+#include <dasm.h>
 
 #define LIBDASM_TOKEN_MAX_LEN 64	
 #define LIBDASM_TOKEN_MAX_CNT_PER_LINE 12
@@ -30,7 +31,7 @@ struct libdasm_token_line {
 	libdice_word_t m_token_cnt;
 };
 
-libdice_word_t libdasm_tokenize_programme(struct libdasm_token_line rdwr_token_lines[], const libdice_word_t c_token_lines_len, const char rd_src[], const libdice_word_t c_src_len);
+DICECALL libdice_word_t libdasm_tokenize_programme(struct libdasm_token_line rdwr_token_lines[], const libdice_word_t c_token_lines_len, const char rd_src[], const libdice_word_t c_src_len);
 libdice_word_t libdasm_get_token_line_word_len(const struct libdasm_token_line *rd_token_line);
 
 

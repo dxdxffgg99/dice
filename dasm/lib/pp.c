@@ -1,5 +1,4 @@
 #include "pp.h"
-#include <dasm.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -282,7 +281,7 @@ static libdice_word_t libdasm_normalize_lines(char rdwr_dst[], const libdice_wor
 	return write_cnt;
 }
 
-libdice_word_t libdasm_preprocess_programme(char rdwr_dst[], const libdice_word_t c_dst_len, const char rd_src[], const libdice_word_t c_src_len)
+DICEIMPL libdice_word_t libdasm_preprocess_programme(char rdwr_dst[], const libdice_word_t c_dst_len, const char rd_src[], const libdice_word_t c_src_len)
 {
 	char buf[LIBDASM_PROGRAMME_MAX_LEN] = {0,};
 	libdice_word_t buf_cnt = 0;

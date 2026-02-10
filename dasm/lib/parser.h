@@ -1,6 +1,7 @@
 #ifndef libdasm_parser_h
 #define libdasm_parser_h
 
+#include <dasm.h>
 #include <libdice/type.h>
 #include <libdice/opcode.h>
 #include <ae2f/c90/StdBool.h>
@@ -17,9 +18,7 @@ struct libdasm_parsed_line {
 	libdice_word_t m_operand_cnt;
 };
 
-
-
-libdice_word_t libdasm_parse_programme(struct libdasm_parsed_line rdwr_parsed_lines[], const libdice_word_t c_parsed_lines_len, 
+DICECALL libdice_word_t libdasm_parse_programme(struct libdasm_parsed_line rdwr_parsed_lines[], const libdice_word_t c_parsed_lines_len, 
 					const struct libdasm_token_line rd_token_lines[], const libdice_word_t c_token_lines_len );
 
 #endif /* libdasm_parser_h */

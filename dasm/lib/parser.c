@@ -1,7 +1,6 @@
 #include "parser.h"
 #include <string.h>
 #include <dasm/keys.h>
-#include <dasm.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <stdio.h>
@@ -325,7 +324,7 @@ static libdice_word_t libdasm_parse_line(struct libdasm_parsed_line *rdwr_parsed
 } 
 
 
-libdice_word_t libdasm_parse_programme(struct libdasm_parsed_line rdwr_parsed_lines[], const libdice_word_t c_parsed_lines_len, 
+DICEIMPL libdice_word_t libdasm_parse_programme(struct libdasm_parsed_line rdwr_parsed_lines[], const libdice_word_t c_parsed_lines_len, 
 					const struct libdasm_token_line rd_token_lines[], const libdice_word_t c_token_lines_len)
 {
 	libdice_word_t token_line_cnt = 0;

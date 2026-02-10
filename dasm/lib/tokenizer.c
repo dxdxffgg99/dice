@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <ae2f/c90/StdBool.h>
 #include <assert.h>
-#include <dasm.h>
 
 enum e_tokenizer_state {
 	TOKENIZER_STATE_IDLE = 0,
@@ -210,7 +209,7 @@ static libdice_word_t libdasm_tokenize_line(struct libdasm_token_line rdwr_token
 /**
  * @brief Reports the size occupied by the program in words.
  * * */
-libdice_word_t libdasm_get_token_line_word_len(const struct libdasm_token_line *rd_token_line)
+DICEIMPL libdice_word_t libdasm_get_token_line_word_len(const struct libdasm_token_line *rd_token_line)
 {
 	libdice_word_t i = 0;
 	libdice_word_t word_len = 0;
@@ -225,7 +224,7 @@ libdice_word_t libdasm_get_token_line_word_len(const struct libdasm_token_line *
 	return word_len;
 }
 
-libdice_word_t libdasm_tokenize_programme(struct libdasm_token_line rdwr_token_lines[], const libdice_word_t c_token_lines_len, const char rd_src[], const libdice_word_t c_src_len)
+DICEIMPL libdice_word_t libdasm_tokenize_programme(struct libdasm_token_line rdwr_token_lines[], const libdice_word_t c_token_lines_len, const char rd_src[], const libdice_word_t c_src_len)
 {
 	libdice_word_t read_cnt = 0;
 	libdice_word_t token_line_cnt = 0;
