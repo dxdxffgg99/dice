@@ -79,25 +79,28 @@ static enum LIBDASM_PP_STATE_ libdasm_update_pp_state(enum LIBDASM_PP_STATE_ sta
 
 
 static libdice_word_t libdasm_remove_comment_from_line(char rdwr_dst[], const libdice_word_t c_dst_len, 
-						const char rd_src[], const libdice_word_t c_src_len, 
-						enum LIBDASM_PP_STATE_ *rdwr_state, libdice_word_t *rdwr_read_cnt)
+							const char rd_src[], const libdice_word_t c_src_len, 
+							enum LIBDASM_PP_STATE_ *rdwr_state, libdice_word_t *rdwr_read_cnt)
 {
 	libdice_word_t write_cnt = 0;
 	libdice_word_t read_cnt = 0;
 	char		c;
 
 	for (
-			read_cnt=0; 
+		read_cnt=0; 
+		
+		read_cnt<c_src_len
+		&& write_cnt<c_dst_len
+		&& (c = rd_src[read_cnt]) 
+		&& c!='\n'
+		; 
 
-			(c = rd_src[read_cnt]) != '\0' 
-			&& c != '\n' 
-			&& read_cnt<c_src_len 
-			&& write_cnt<c_dst_len; 
-
-			++read_cnt) {
+		++read_cnt) {
 
 		switch (*rdwr_state)
 		{
+			
+			case LIBDASM_PP_STATE_LINE_COMMENT:
 			case LIBDASM_PP_STATE_BLOCK_COMMENT:
 				break;
 			case LIBDASM_PP_STATE_NORMAL:
@@ -106,7 +109,6 @@ static libdice_word_t libdasm_remove_comment_from_line(char rdwr_dst[], const li
 				}
 
 				ae2f_fallthrough;
-			case LIBDASM_PP_STATE_LINE_COMMENT:
 			case LIBDASM_PP_STATE_STRING:	/*intentionally fallthrough*/
 			case LIBDASM_PP_STATE_CHAR:	/*intentionally fallthrough*/
 			default:
@@ -118,7 +120,8 @@ static libdice_word_t libdasm_remove_comment_from_line(char rdwr_dst[], const li
 		*rdwr_state = libdasm_update_pp_state(*rdwr_state, c);
 	}
 
-	*rdwr_read_cnt = read_cnt + (rd_src[read_cnt] == '\n');
+	*rdwr_read_cnt = read_cnt + (rd_src[read_cnt] == '\n' && (rdwr_dst[write_cnt++] = '\n'));
+
 	return write_cnt;
 }
 
@@ -127,8 +130,8 @@ static libdice_word_t libdasm_remove_comment_from_line(char rdwr_dst[], const li
  * @brief remove useless whitespace. keep line number
  */
 static libdice_word_t libdasm_normalize_line(char rdwr_dst[], const libdice_word_t c_dst_len, 
-		const char rd_src[], const libdice_word_t c_src_len,
-		libdice_word_t *rdwr_read_cnt)
+						const char rd_src[], const libdice_word_t c_src_len,
+						libdice_word_t *rdwr_read_cnt)
 {
 	libdice_word_t write_cnt = 0;
 	libdice_word_t read_cnt = 0;
@@ -136,14 +139,19 @@ static libdice_word_t libdasm_normalize_line(char rdwr_dst[], const libdice_word
 	char	PREV_CH = 0;
 	char	CH;
 
-	for (read_cnt=0; read_cnt<c_src_len && !!(CH = rd_src[read_cnt]) && CH != '\n'; ++read_cnt) {
+	for (	read_cnt=0;
+		
+		read_cnt<c_src_len 
+		&& (CH = rd_src[read_cnt]) 
+		&& (CH != '\n');
+
+		++read_cnt) {
+		
+
 		switch (CH)
 		{
 			case '\r':
 				continue;
-			case '\n':
-				++read_cnt;
-				break;
 			case '\t':
 				CH = ' ';
 				ae2f_fallthrough;
@@ -163,7 +171,7 @@ static libdice_word_t libdasm_normalize_line(char rdwr_dst[], const libdice_word
 				++write_cnt;
 		}
 	}
-	*rdwr_read_cnt = read_cnt;
+	*rdwr_read_cnt = read_cnt + (rd_src[read_cnt] == '\n' && (rdwr_dst[write_cnt++] = '\n'));
 
 	if (PREV_CH == ' ' && CH == '\n' && write_cnt == 2) {
 		/* current line that we handling does't have 'non whitespace' character */
@@ -175,7 +183,8 @@ static libdice_word_t libdasm_normalize_line(char rdwr_dst[], const libdice_word
 	return write_cnt;
 }
 
-static libdice_word_t libdasm_remove_comments(char rdwr_dst[], const libdice_word_t c_dst_len, const char rd_src[], const libdice_word_t c_src_len)
+static libdice_word_t libdasm_remove_comments(char rdwr_dst[], const libdice_word_t c_dst_len,
+						const char rd_src[], const libdice_word_t c_src_len)
 {
 	libdice_word_t real_src_len;
 	libdice_word_t read_cnt = 0;
@@ -221,7 +230,8 @@ static libdice_word_t libdasm_remove_comments(char rdwr_dst[], const libdice_wor
 	return write_cnt;
 }
 
-static libdice_word_t libdasm_normalize_lines(char rdwr_dst[], const libdice_word_t c_dst_len, const char rd_src[], const libdice_word_t c_src_len)
+static libdice_word_t libdasm_normalize_lines(char rdwr_dst[], const libdice_word_t c_dst_len,
+						const char rd_src[], const libdice_word_t c_src_len)
 {
 	libdice_word_t read_cnt = 0;
 	libdice_word_t write_cnt = 0;
@@ -232,7 +242,8 @@ static libdice_word_t libdasm_normalize_lines(char rdwr_dst[], const libdice_wor
 		libdice_word_t tmp_read_cnt = 0;
 		libdice_word_t tmp_write_cnt = 0;
 
-		tmp_write_cnt = libdasm_normalize_line(rdwr_dst+write_cnt, c_dst_len-write_cnt, rd_src+read_cnt, c_src_len-read_cnt, &tmp_read_cnt);
+		tmp_write_cnt = libdasm_normalize_line(rdwr_dst+write_cnt, c_dst_len-write_cnt,
+							rd_src+read_cnt, c_src_len-read_cnt, &tmp_read_cnt);
 		if (tmp_write_cnt == LIBDASM_ERR_RET) {
 			return LIBDASM_ERR_RET;
 		}
@@ -259,7 +270,8 @@ static libdice_word_t libdasm_normalize_lines(char rdwr_dst[], const libdice_wor
 	return write_cnt;
 }
 
-DICEIMPL libdice_word_t libdasm_preprocess_programme(char rdwr_dst[], const libdice_word_t c_dst_len, const char rd_src[], const libdice_word_t c_src_len)
+DICEIMPL libdice_word_t libdasm_preprocess_programme(char rdwr_dst[], const libdice_word_t c_dst_len,
+							const char rd_src[], const libdice_word_t c_src_len)
 {
 	char buf[LIBDASM_PROGRAMME_MAX_LEN] = {0,};
 	libdice_word_t buf_cnt = 0;

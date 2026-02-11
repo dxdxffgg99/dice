@@ -2,12 +2,12 @@
 #include <dasm.h>
 #include <stdio.h>
 
-#define  PROGRAMME "	label0: nop		\n	\
-			iadd 111 *111 #1	\n	\
-			igt 112 *111 #8		\n 	\
-			puti *111 		\n 	\
-			jmpz *112 *label0	\n	\
-			eop"
+#define  PROGRAMME 	"label0: nop		\n"	\
+			"iadd 111 *111 #1	\n"	\
+			"igt 112 *111 #8	\n"	\
+			"puti *111 		\n"	\
+			"jmpz *112 *label0	\n"	\
+			"eop"
 
 
 int main(void)
