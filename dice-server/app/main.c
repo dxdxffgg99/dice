@@ -24,6 +24,7 @@ int main(int argc, const char** argv) {
 		case 2:
 			puts("[main]\tmust be ./dice-server [ip] [port]");
 			return 0;
+
 		default:
 		case 3:
 			PORT = (u16_least)atoi(argv[2]);
@@ -48,11 +49,15 @@ int main(int argc, const char** argv) {
 	{
 		ae2fsys_sock_blkmode_t	rdwr_mem;
 		enum AE2FSYS_SOCK_	res;
-		_ae2fsys_set_sock_blkmode_imp(rdwr_mem, SOCK_SVR, 1, res);
+		_ae2fsys_set_sock_blkmode_imp(
+				rdwr_mem
+				, SOCK_SVR
+				, 1
+				, res);
 
 		if(res) {
 			assert(0 && "[main]\t _ae2fsys_set_sock_blkmode_imp failed.");
-			closesocket(AF_INET);
+			closesocket(SOCK_SVR);
 			return -1;
 		}
 	}
