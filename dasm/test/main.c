@@ -12,13 +12,13 @@
 
 int main(void)
 {	
-	libdice_word_t exe[LIBDASM_PROGRAMME_MAX_LEN] = {0,};
+	libdice_word_t exe[DASM_PROGRAMME_MAX_LEN] = {0,};
 	libdice_word_t exe_cnt = 0;
 	libdice_word_t i = 0;
 
-	char asm_programme[LIBDASM_PROGRAMME_MAX_LEN] = PROGRAMME;
-	exe_cnt = libdasm_assemble(exe, LIBDASM_PROGRAMME_MAX_LEN, asm_programme, LIBDASM_PROGRAMME_MAX_LEN);
-	if (exe_cnt == LIBDASM_ERR_RET) {
+	char asm_programme[DASM_PROGRAMME_MAX_LEN] = PROGRAMME;
+	exe_cnt = dasm_assemble(exe, DASM_PROGRAMME_MAX_LEN, asm_programme, DASM_PROGRAMME_MAX_LEN);
+	if (exe_cnt == DASM_ERR_RET) {
 		printf("Syntax error\n");
 		return 0;
 	}
