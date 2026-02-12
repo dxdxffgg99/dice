@@ -4,6 +4,7 @@
 #include <ae2f/Keys.h>
 #include <ae2f/c90/StdInt.h>
 #include <ae2f/Keys.h>
+#include <c89atomic.h>
 
 #include "./libdice/type.h"
 #include "./libdice/abi.h"
@@ -13,6 +14,9 @@ enum LIBDICE_CTX_
 	/** @brief end of programme */
 	LIBDICE_CTX_EOP,
 	LIBDICE_CTX_GOOD,
+	LIBDICE_CTX_INCOMPLETE,
+
+	/** @brief pc has reached its end however eop has not been met. */
 	LIBDICE_CTX_PC_AFTER_PROGRAMME,
 	LIBDICE_CTX_LOOKUP_LEAK,
 	/** @brief dereference is invalid */
@@ -39,7 +43,9 @@ ae2f_extern DICECALL libdice_ctx libdice_run_one(
 		libdice_word_t *ae2f_restrict const rdwr_ram,
 		const libdice_word_t c_num_ram,
 		libdice_word_t *ae2f_restrict const rdwr_lookup,
-		const libdice_word_t c_num_lookup);
+		const libdice_word_t	c_num_lookup,
+		volatile c89atomic_uint32* const	rdwr_a32lck
+		);
 
 ae2f_extern DICECALL libdice_ctx libdice_run(
 		libdice_ctx c_ctx,
@@ -49,6 +55,8 @@ ae2f_extern DICECALL libdice_ctx libdice_run(
 		libdice_word_t *ae2f_restrict const rdwr_ram,
 		const libdice_word_t c_num_ram,
 		libdice_word_t *ae2f_restrict const rdwr_lookup,
-		const libdice_word_t c_num_lookup);
+		const libdice_word_t c_num_lookup,
+		volatile c89atomic_uint32* const	rdwr_a32lck
+		);
 
 #endif

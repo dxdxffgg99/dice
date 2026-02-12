@@ -29,8 +29,6 @@ file(GLOB_RECURSE dice_server_lib ${CMAKE_CURRENT_SOURCE_DIR}/lib/*)
 file(GLOB_RECURSE dice_server_inc ${CMAKE_CURRENT_SOURCE_DIR}/inc/*)
 file(GLOB_RECURSE dice_server_app ${CMAKE_CURRENT_SOURCE_DIR}/app/*)
 
-ae2f_CoreLibFetchX(ae2f Core main)
-
 if(NOT TARGET ae3f::libdice)
 	ae2f_CoreLibFetchX(ae3f dice master)
 endif()

@@ -1,3 +1,5 @@
+#include <ae2f/Sys/Thrd.h>
+
 #include <libdice.h>
 #include <libdice/opcode.h>
 #include <libdice/type.h>
@@ -5,6 +7,7 @@
 
 #include <assert.h>
 #include <stdlib.h>
+#include <time.h>
 
 typedef struct
 {
@@ -329,7 +332,9 @@ DICEIMPL libdice_ctx libdice_run_one(
 		libdice_word_t *ae2f_restrict const rdwr_ram,
 		const libdice_word_t c_num_ram,
 		libdice_word_t *ae2f_restrict const rdwr_lookup,
-		const libdice_word_t c_num_lookup)
+		const libdice_word_t		c_num_lookup,
+		volatile c89atomic_uint32* const	rdwr_a32lck
+		)
 {
 	assert(rd_programme);
 	assert(rdwr_ram);
@@ -341,11 +346,12 @@ DICEIMPL libdice_ctx libdice_run_one(
 	assert(rd_interface_put->m_pfn_putu);
 	assert(rd_interface_put->m_pfn_puti);
 	assert(c_num_lookup >= LIBDICE_LOOKUP_SECTION_WORD_LEN); 
+	assert(rdwr_a32lck);
 
 	ae2f_unexpected_but_if(c_ctx.m_state != LIBDICE_CTX_GOOD) { return c_ctx; }
 	ae2f_expected_but_else(c_ctx.m_pc < c_num_programme)
 	{
-		c_ctx.m_state = LIBDICE_CTX_PC_AFTER_PROGRAMME;
+		c_ctx.m_state = LIBDICE_CTX_INCOMPLETE;
 		return c_ctx;
 	}
 
@@ -381,6 +387,23 @@ DICEIMPL libdice_ctx libdice_run_one(
 			c_ctx.m_state = LIBDICE_CTX_DEREFINVAL;                \
 			return c_ctx;                                          \
 		}
+
+		case LIBDICE_OPCODE_TIME:
+		ae2f_expected_but_else(c_ctx.m_pc + 1 < c_num_programme)
+		{
+			c_ctx.m_state = LIBDICE_CTX_PC_AFTER_PROGRAMME;
+			return c_ctx;
+		}
+
+		ae2f_expected_but_else(rd_programme[c_ctx.m_pc + 1] < c_num_ram)
+		{
+			c_ctx.m_state = LIBDICE_CTX_PC_AFTER_PROGRAMME;
+			return c_ctx;
+		}
+
+		rdwr_ram[rd_programme[c_ctx.m_pc + 1]] = (libdice_word_t)time(0);
+		c_ctx.m_pc += 2;
+		return c_ctx;
 
 		case LIBDICE_OPCODE_SET:
 		ae2f_expected_but_else(c_ctx.m_pc + 2 < c_num_programme)
@@ -578,6 +601,12 @@ DICEIMPL libdice_ctx libdice_run_one(
 			libdice_word_t i = 0;
 			libdice_word_t tmp_key_byte_len = 0;
 
+			while(!c89atomic_load_32(rdwr_a32lck)) {
+				(void)c89atomic_compare_and_swap_32(
+						rdwr_a32lck, 0, 1);
+				_ae2fsys_yield_thrd_imp(L);
+			}
+
 			ae2f_unexpected_but_if(c_ctx.m_lookup_used + LIBDICE_LOOKUP_SECTION_WORD_LEN > c_num_lookup)
 			{
 				c_ctx.m_state = LIBDICE_CTX_LOOKUP_LEAK;
@@ -638,6 +667,9 @@ DICEIMPL libdice_ctx libdice_run_one(
 			c_ctx.m_lookup_used += LIBDICE_LOOKUP_SECTION_WORD_LEN;
 
 			c_ctx.m_pc += 3;
+
+			c89atomic_fetch_and_32(rdwr_a32lck, 0);
+
 			return c_ctx;
 		}
 
@@ -647,6 +679,12 @@ DICEIMPL libdice_ctx libdice_run_one(
 			libdice_word_t i = 0;
 			libdice_word_t tmp_key_byte_len = 0;
 			libdice_word_t j = 0;
+
+			while(!c89atomic_load_32(rdwr_a32lck)) {
+				(void)c89atomic_compare_and_swap_32(
+						rdwr_a32lck, 0, 1);
+				_ae2fsys_yield_thrd_imp(L);
+			}
 
 			__deref(O0, 1); /*pointer to key*/
 
@@ -693,6 +731,8 @@ DICEIMPL libdice_ctx libdice_run_one(
 
 			c_ctx.m_lookup_used -= LIBDICE_LOOKUP_SECTION_WORD_LEN;
 			c_ctx.m_pc += 3;
+
+			c89atomic_fetch_and_32(rdwr_a32lck, 0);
 			return c_ctx;
 		}
 		case LIBDICE_OPCODE_SETRANDSEED:

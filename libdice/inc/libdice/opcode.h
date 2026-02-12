@@ -330,6 +330,12 @@ enum LIBDICE_OPCODE_
 	 * */
 	LIBDICE_OPCODE_FRAND,
 
+	/**
+	 * 	@brief	get time as u32
+	 * 	@detail	dst
+	 * */
+	LIBDICE_OPCODE_TIME,
+
 
 	/**
 	 * @brief end of programme

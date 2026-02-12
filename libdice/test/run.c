@@ -1,6 +1,5 @@
 #include <libdice.h>
 #include <libdice/opcode.h>
-
 #include <stdio.h>
 
 static E_LIBDICE_CTX_t	__putc(
@@ -91,6 +90,7 @@ int main(void) {
 
 	libdice_word_t	RAM[100];
 	libdice_word_t	LOOKUP[100];
+	c89atomic_uint32	LCK;
 
 
 	CONTEXT.m_lookup_used	= 0;
@@ -111,7 +111,7 @@ int main(void) {
 			, sizeof(PROGRAMME) / sizeof(PROGRAMME[0])
 			, RAM, sizeof(RAM) / sizeof(RAM[0])
 			, LOOKUP, sizeof(LOOKUP) / sizeof(LOOKUP[0])
-			);
+			, &LCK);
 
 	printf("Final State: %u\n", CONTEXT.m_state);
 	printf("Programme counter: %u\n", CONTEXT.m_pc);

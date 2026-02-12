@@ -32,6 +32,9 @@ if(NOT DEFINED LIBDICE_LOOKUP_SECTION_WORD_LEN)
 	set(LIBDICE_LOOKUP_SECTION_WORD_LEN 32)
 endif()
 
+ae2f_CoreLibFetchX(ae2f Core	main)
+ae2f_CoreLibFetchX(ae2f Sys	main)
+
 ae2f_CoreLibTentConfigCustom(libdice STATIC inc ae3f ${ae2f_ProjRoot}/cfg/libdice.cmake.in
 	${libdice_c} ${libdice_h}
 	)
@@ -41,7 +44,6 @@ configure_file(
 	${PROJECT_SOURCE_DIR}/inc/libdice/.lookup.h
 	)
 
-target_link_libraries(ae3f-libdice ae2f::Core)
+target_link_libraries(ae3f-libdice ae2f::Sys)
 ae2f_UltraErrWERROR(ae3f-libdice PRIVATE)
-
 ae2f_CoreTestTentVerbose(ae3f-libdice test)

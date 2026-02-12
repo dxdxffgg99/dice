@@ -8,7 +8,8 @@ ae2f_extern DICECALL libdice_ctx libdice_run(
 		libdice_word_t* ae2f_restrict const		rdwr_ram,
 		const libdice_word_t				c_num_ram,
 		libdice_word_t* ae2f_restrict const		rdwr_lookup,
-		const libdice_word_t				c_num_lookup
+		const libdice_word_t				c_num_lookup,
+		volatile c89atomic_uint32* const	rdwr_a32lck
 		)
 {
 	while(c_ctx.m_state == LIBDICE_CTX_GOOD) {
@@ -18,7 +19,9 @@ ae2f_extern DICECALL libdice_ctx libdice_run(
 				, rd_programme
 				, c_num_programme
 				, rdwr_ram, c_num_ram, rdwr_lookup
-				, c_num_lookup);
+				, c_num_lookup
+				, rdwr_a32lck
+				);
 	}
 
 	return c_ctx;
