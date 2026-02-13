@@ -2,7 +2,6 @@
 #include <string.h>
 #include <assert.h>
 #include <ae2f/c90/StdBool.h>
-#include <stdio.h>
 
 #define PP_LINE_COMMENT_START ';'
 #define PP_LINE_COMMENT_END '\n'
