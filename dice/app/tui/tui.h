@@ -1,5 +1,3 @@
-#pragma once
-
 #ifndef TUI_H
 #define TUI_H
 
@@ -9,54 +7,24 @@
 #include <signal.h>
 #include <string.h>
 
-#ifdef _WIN32
-#include <conio.h>
-#include <windows.h>
-#else
-#include <sys/ioctl.h>
-#include <sys/select.h>
-#include <termios.h>
-#include <unistd.h>
-#endif
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <ae2f/Sys/Trm.h>
 
 /**
  * @brief Get current terminal size in rows and columns.
  * @details Writes row and column counts to the provided pointers. Returns 0 on
- * success, -1 on failure.
- */
-static inline int tui_get_size(unsigned short *rows, unsigned short *cols) {
-#ifdef _WIN32
-    if (!rows || !cols) return -1;
-
-    CONSOLE_SCREEN_BUFFER_INFO csbi;
-
-    if (!GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi)) return -1;
-
-    *cols = (unsigned short)(csbi.srWindow.Right - csbi.srWindow.Left + 1);
-    *rows = (unsigned short)(csbi.srWindow.Bottom - csbi.srWindow.Top + 1);
-
-    return 0;
-#else
-    if (!rows || !cols) return -1;
-
-    struct winsize w;
-
-    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == -1) return -1;
-
-    *rows = w.ws_row;
-    *cols = w.ws_col;
-
-    return 0;
-#endif
+ * */
+static void tui_get_size(ae2fsys_trmpos_t *rdwr_row_len, ae2fsys_trmpos_t *rdwr_col_len) {
+	if (!rdwr_row_len || !rdwr_col_len) {
+		return;
+	}
+	
+	ae2fsys_get_trm_size_simple_imp(*rdwr_row_len, *rdwr_col_len);
 }
 
 typedef struct {
-    size_t rows, cols;
-    char *cells;
+	ae2fsys_trmpos_t row_len
+	ae2fsys_trmpos_t col_len;
+	char *cells;
 } tui_frame_t;
 
 
@@ -64,54 +32,49 @@ typedef struct {
  * @brief Convert a character to a printable ASCII fallback.
  * @details Returns the input when it is printable ASCII, otherwise returns '?'.
  */
-static inline char tui_sanitize_ascii(char ch) {
-    if ((unsigned char)ch < 32 || (unsigned char)ch > 126) return '?';
-
-    return ch;
+static ae2f_inline char tui_sanitize_ascii(const char c_c) {
+	return ((unsigned char)c_c < 32 || (unsigned char)c_c > 126)? '?' : c_c;
 }
 
 /**
  * @brief Allocate a new frame with the given size.
  * @details Returns a newly allocated frame or NULL on failure.
  */
-static inline tui_frame_t *tui_frame_new(size_t rows, size_t cols) {
-    if (rows == 0 || cols == 0 || cols > SIZE_MAX / rows) return NULL;
+static void tui_frame_new(tui_frame_t *rdwr_frame, const ae2fsys_trmpos_t c_row_len, const ae2fsys_trmpos_t c_col_len) {
+	
+	if (!c_row_len || !c_col_len || c_col_len > SIZE_MAX / c_row_len || !rdwr_frame) {
+		return NULL;
+	}
+	
+	rdwr_frame->cells = (char*)malloc(sizeof(char) * c_row_len * c_col_len);
+	if (!rdwr_frame->cells) {
+		return NULL;
+	}
 
-    size_t total = rows * cols;
-    tui_frame_t *f = malloc(sizeof *f);
-
-    if (!f) return NULL;
-
-    f->rows = rows;
-    f->cols = cols;
-    f->cells = calloc(total, sizeof(char));
-
-    if (!f->cells) { free(f); return NULL; }
-
-    return f;
+	rdwr_frame->row_len = c_row_len;
+	rdwr_frame->col_len = c_col_len;
 }
-
 
 /**
  * @brief Free a frame and its backing storage.
  * @details Safe to call with NULL.
  */
-static inline void tui_frame_free(tui_frame_t *f) {
-    if (!f) return;
+static void tui_frame_free(tui_frame_t *rdwr_frame) {
+	if (!rdwr_frame) {
+		return;	
+	}
 
-    free(f->cells);
-    free(f);
+	free(rdwr_frame->cells);
 }
-
-
 /**
  * @brief Set a character in the frame, sanitizing to ASCII.
  * @details Returns 0 on success and -1 on bounds or argument failure.
  */
-static inline int tui_frame_set_char(tui_frame_t *f, size_t r, size_t c, char ch) {
-    if (!f || r >= f->rows || c >= f->cols) return -1;
-
-    f->cells[r * f->cols + c] = tui_sanitize_ascii(ch);
+static int tui_frame_set_char(tui_frame_t *rdwr_frame, const size_t c_row, const size_t c_col, const char c_c) {
+    if (!rdwr_frame || c_row >= rdwr_frame->row_len || c_col >= rdwr_frame->col_len) {
+	return -1;
+    }
+    rdwr_frame->cells[c_row * rdwr_frame->col_len + c_col] = tui_sanitize_ascii(ch);
 
     return 0;
 }
