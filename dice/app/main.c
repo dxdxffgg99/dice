@@ -311,7 +311,6 @@ int main(int argc, char **argv) {
 		if (ch == '\r' || ch == '\n') {
 			if (input_len > 0 && line_count < CHAT_MAX_LINES) {
 				chat_add_message(lines, &line_count, current_user, input);
-
 				input_len = 0;
 				input[0] = '\0';
 			}
