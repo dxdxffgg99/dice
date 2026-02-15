@@ -180,7 +180,7 @@ static void tui_ansi_move_cursor(const ae2fsys_trmpos_t c_row, const ae2fsys_trm
  */
 static void tui_ansi_clear_screen(void) {
 	
-	ae2fsys_clear_trm_simple_imp();
+	ae2fsys_clear_trm_simple_imp(L);
 }
 
 /**
