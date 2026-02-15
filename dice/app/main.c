@@ -145,22 +145,22 @@ static parse_server_status_t parse_server_arg(
     return PARSE_SERVER_OK;
 }
 
-static void tui_write_text(tui_frame_t *f, size_t row, size_t col, const char *text) {
+static void tui_write_text(tui_frame_t *f, ae2fsys_trmpos_t row, ae2fsys_trmpos_t col, const char *text) {
 	if (!f || !text) return;
 
 	if (row >= f->rows || col >= f->cols) return;
 
-	size_t c = col;
+	ae2fsys_trmpos_t c = col;
 
 	for (size_t i = 0; text[i] != '\0' && c < f->cols; ++i, ++c) {
 		tui_frame_set_char(f, row, c, text[i]);
 	}
 }
 
-static void tui_draw_hline(tui_frame_t *f, size_t row, char ch) {
+static void tui_draw_hline(tui_frame_t *f, ae2fsys_trmpos_t row, char ch) {
 	if (!f) return;
 
-	for (size_t c = 0; c < f->cols; ++c) {
+	for (ae2fsys_trmpos_t c = 0; c < f->cols; ++c) {
 		tui_frame_set_char(f, row, c, ch);
 	}
 }
@@ -223,7 +223,7 @@ int main(int argc, char **argv) {
 	input[0] = '\0';
 
 	/* clear screen and hide cursor after raw mode enabled */
-	tui_ansi_clear_screen(ctx->out);
+	tui_ansi_clear_screen();
 	tui_ansi_hide_cursor(ctx->out);
 
 	int running = 1;
@@ -258,7 +258,7 @@ int main(int argc, char **argv) {
 		tui_draw_hline(f, 1, '-');
 
 		size_t msg_top = 2;
-		size_t msg_bottom = f->rows - 3;
+		size_t msg_bottom = (size_t)(f->rows - 3);
 		size_t msg_rows = (msg_bottom >= msg_top) ? (msg_bottom - msg_top + 1) : 0;
 
 		if (msg_rows == 0) {
@@ -279,7 +279,7 @@ int main(int argc, char **argv) {
 
 			if (idx >= line_count) break;
 
-			tui_write_text(f, msg_top + i, 0, lines[idx]);
+			tui_write_text(f, (ae2fsys_trmpos_t)(msg_top + i), 0, lines[idx]);
 		}
 
 		tui_draw_hline(f, f->rows - 2, '-');
@@ -334,7 +334,7 @@ int main(int argc, char **argv) {
 	}
 
 	tui_ansi_show_cursor(ctx->out);
-	tui_ansi_clear_screen(ctx->out);
+	tui_ansi_clear_screen();
 	tui_ctx_free(ctx);
 
 	return 0;

@@ -8,23 +8,25 @@
 #include <string.h>
 
 #include <ae2f/Sys/Trm.h>
+#include <termios.h>
+#include <unistd.h>
+#include <sys/select.h>
+#include <sys/time.h>
 
 /**
  * @brief Get current terminal size in rows and columns.
  * @details Writes row and column counts to the provided pointers. Returns 0 on
  * */
-static void tui_get_size(ae2fsys_trmpos_t *rdwr_row_len, ae2fsys_trmpos_t *rdwr_col_len) {
-	if (!rdwr_row_len || !rdwr_col_len) {
-		return;
-	}
-
-	ae2fsys_get_trm_size_simple_imp(*rdwr_col_len, *rdwr_row_len);
+static int tui_get_size(ae2fsys_trmpos_t *rdwr_row_len, ae2fsys_trmpos_t *rdwr_col_len) {
+    if (!rdwr_row_len || !rdwr_col_len) return -1;
+    _ae2fsys_get_trm_size_simple_imp(L, *rdwr_col_len, *rdwr_row_len);
+    return 0;
 }
 
 typedef struct {
-	ae2fsys_trmpos_t m_row_len;
-	ae2fsys_trmpos_t m_col_len;
-	char *m_cells;
+	ae2fsys_trmpos_t rows;
+	ae2fsys_trmpos_t cols;
+	char *cells;
 } tui_frame_t;
 
 
@@ -40,117 +42,124 @@ static ae2f_inline char tui_sanitize_ascii(const char c_c) {
  * @brief Allocate a new frame with the given size.
  * @details Returns a newly allocated frame or NULL on failure.
  */
-static void tui_frame_new(tui_frame_t *rdwr_frame, const ae2fsys_trmpos_t c_row_len, const ae2fsys_trmpos_t c_col_len) {
+static tui_frame_t *tui_frame_new(const ae2fsys_trmpos_t c_row_len,
+                                  const ae2fsys_trmpos_t c_col_len)
+{
+    tui_frame_t *frame;
 
-	if (!c_row_len || !c_col_len || (size_t)c_col_len > SIZE_MAX / (size_t)c_row_len || !rdwr_frame) {
-		return;
-	}
+    if (!c_row_len || !c_col_len ||
+        (size_t)c_col_len > SIZE_MAX / (size_t)c_row_len) {
+        return NULL;
+    }
 
-	rdwr_frame->m_cells = (char*)malloc(sizeof(char) * (size_t)c_row_len * (size_t)c_col_len);
-	if (!rdwr_frame->m_cells) {
-		return;
-	}
+    frame = malloc(sizeof *frame);
+    if (!frame) return NULL;
 
-	rdwr_frame->m_row_len = c_row_len;
-	rdwr_frame->m_col_len = c_col_len;
+    frame->cells = malloc((size_t)c_row_len * (size_t)c_col_len * sizeof(char));
+    if (!frame->cells) {
+        free(frame);
+        return NULL;
+    }
+
+    frame->rows = c_row_len;
+    frame->cols = c_col_len;
+    return frame;
 }
 
 /**
  * @brief Free a frame and its backing storage.
  * @details Safe to call with NULL.
  */
-static void tui_frame_free(tui_frame_t *rdwr_frame) {
-	if (!rdwr_frame) {
-		return;	
-	}
+static void tui_frame_free(tui_frame_t *frame) {
+	if (!frame) return;
 
-	free(rdwr_frame->m_cells);
-}
+	free(frame->cells);
+	free(frame);
+} 
 
 /**
  * @brief Set a character in the frame, sanitizing to ASCII.
  * @details Returns 0 on success and -1 on bounds or argument failure.
  */
-static int tui_frame_set_char(tui_frame_t *rdwr_frame, const ae2fsys_trmpos_t c_row, const ae2fsys_trmpos_t c_col, const char c_c) {
-	if (!rdwr_frame || c_row >= rdwr_frame->m_row_len || c_col >= rdwr_frame->m_col_len) {
+static int tui_frame_set_char(tui_frame_t *frame, const ae2fsys_trmpos_t c_row, const ae2fsys_trmpos_t c_col, const char c_c) {
+	if (!frame || c_row >= frame->rows || c_col >= frame->cols) {
 		return -1;
 	}
-	rdwr_frame->m_cells[c_row * rdwr_frame->m_col_len + c_col] = tui_sanitize_ascii(c_c);
+	frame->cells[c_row * frame->cols + c_col] = tui_sanitize_ascii(c_c);
 
 	return 0;
-}
+} 
 
 /**
  * @brief Get a character from the frame.
  * @details Returns the character at the location or '\0' on failure.
  */
-static char tui_frame_get_char(const tui_frame_t *rd_frame, const ae2fsys_trmpos_t c_row, const ae2fsys_trmpos_t c_col) {
+static __attribute__((unused)) char tui_frame_get_char(const tui_frame_t *frame, const ae2fsys_trmpos_t c_row, const ae2fsys_trmpos_t c_col) {
 
-	if (!rd_frame || c_row >= rd_frame->m_row_len || c_col >= rd_frame->m_col_len) {
+	if (!frame || c_row >= frame->rows || c_col >= frame->cols) {
 		return '\0';
 	}
-	return rd_frame->m_cells[c_row * rd_frame->m_col_len + c_col];
-}
+	return frame->cells[c_row * frame->cols + c_col];
+} 
 
 
 /**
  * @brief Fill the entire frame with a character.
  * @details No-op when frame is NULL.
  */
-static void tui_frame_clear(tui_frame_t *rdwr_frame, const char c_c) {
-	if (!rdwr_frame) {
+static void tui_frame_clear(tui_frame_t *frame, const char c_c) {
+	if (!frame) {
 		return;
 	}
 
-	memset(rdwr_frame->m_cells, (unsigned char)c_c, (size_t)rdwr_frame->m_row_len * (size_t)rdwr_frame->m_col_len);
-}
+	memset(frame->cells, (unsigned char)c_c, (size_t)frame->rows * (size_t)frame->cols);
+} 
 
 
 /**
  * @brief Resize a frame, preserving overlapping contents.
  * @details Returns 0 on success and -1 on failure.
  */
-static int tui_frame_resize(tui_frame_t *rdwr_frame, const ae2fsys_trmpos_t c_row_len, const ae2fsys_trmpos_t c_col_len) {
-	if (!rdwr_frame || !c_row_len || !c_col_len || (size_t)c_col_len > SIZE_MAX / (size_t)c_row_len) {
+static int tui_frame_resize(tui_frame_t *frame, const ae2fsys_trmpos_t c_row_len, const ae2fsys_trmpos_t c_col_len) {
+	if (!frame || !c_row_len || !c_col_len || (size_t)c_col_len > SIZE_MAX / (size_t)c_row_len) {
 		return -1;
 	}
 
-	char *new_cells	= (char*)malloc(sizeof(char) * (size_t)c_col_len * (size_t)c_row_len);
+	char *new_cells = malloc((size_t)c_col_len * (size_t)c_row_len * sizeof(char));
 	if (!new_cells) {
 		return -1;
-	}	
+	}
 	memset(new_cells, 0, (size_t)c_col_len * (size_t)c_row_len);
 
-	ae2fsys_trmpos_t min_row_len = c_row_len < rdwr_frame->m_row_len ? c_row_len : rdwr_frame->m_row_len;
-	ae2fsys_trmpos_t min_col_len = c_col_len < rdwr_frame->m_col_len ? c_col_len : rdwr_frame->m_col_len;
+	ae2fsys_trmpos_t min_row_len = c_row_len < frame->rows ? c_row_len : frame->rows;
+	ae2fsys_trmpos_t min_col_len = c_col_len < frame->cols ? c_col_len : frame->cols;
 	
-	for (ae2fsys_trmpos_t r=0; r<min_row_len; ++r) {
-		memcpy(new_cells + r * c_col_len, rdwr_frame->m_cells + r * rdwr_frame->m_col_len, (size_t)min_col_len);
+	for (ae2fsys_trmpos_t r = 0; r < min_row_len; ++r) {
+		memcpy(new_cells + r * c_col_len, frame->cells + r * frame->cols, (size_t)min_col_len);
 	}
-	free(rdwr_frame->m_cells);
+	free(frame->cells);
 
-	rdwr_frame->m_cells = new_cells;
-	rdwr_frame->m_row_len = c_row_len;
-	rdwr_frame->m_col_len = c_col_len;
+	frame->cells = new_cells;
+	frame->rows = c_row_len;
+	frame->cols = c_col_len;
 
 	return 0;
-}
+} 
 
 
 /**
  * @brief Draw the frame to an output stream with newlines.
  * @details Writes each row followed by a newline and flushes the stream.
  */
-static int tui_frame_draw(FILE *rdwr_dst, const tui_frame_t *rd_frame) {
-	if (!rdwr_dst || !rd_frame) {
+static __attribute__((unused)) int tui_frame_draw(FILE *rdwr_dst, const tui_frame_t *frame) {
+	if (!rdwr_dst || !frame) {
 		return -1;
 	}
 
-	for (ae2fsys_trmpos_t r=0; r<rd_frame->m_row_len; ++r) {
-		size_t tmp_write_size = 0;
-		tmp_write_size =  fwrite(rd_frame->m_cells + r * rd_frame->m_col_len, sizeof(char),
-				(size_t)rd_frame->m_col_len, rdwr_dst);	
-		if (tmp_write_size != (size_t)rd_frame->m_col_len * sizeof(char)) {
+	for (ae2fsys_trmpos_t r = 0; r < frame->rows; ++r) {
+		size_t tmp_write_size = fwrite(frame->cells + r * frame->cols, sizeof(char),
+				(size_t)frame->cols, rdwr_dst);
+		if (tmp_write_size != (size_t)frame->cols) {
 			return -1;
 		}
 		fputc('\n', rdwr_dst);
@@ -161,7 +170,7 @@ static int tui_frame_draw(FILE *rdwr_dst, const tui_frame_t *rd_frame) {
 	}
 
 	return 0;
-}
+} 
 
 
 /**
@@ -170,7 +179,7 @@ static int tui_frame_draw(FILE *rdwr_dst, const tui_frame_t *rd_frame) {
  */
 static void tui_ansi_move_cursor(const ae2fsys_trmpos_t c_row, const ae2fsys_trmpos_t c_col) {
 
-	ae2fsys_trm_goto_simple_imp(c_col, c_row);
+	_ae2fsys_trm_goto_simple_imp(L, c_col, c_row);
 
 }
 
@@ -180,7 +189,7 @@ static void tui_ansi_move_cursor(const ae2fsys_trmpos_t c_row, const ae2fsys_trm
  */
 static void tui_ansi_clear_screen(void) {
 	
-	ae2fsys_clear_trm_simple_imp();
+	_ae2fsys_clear_trm_simple_imp(L);
 }
 
 /**
@@ -216,6 +225,7 @@ static int tui_ansi_show_cursor(FILE *rdwr_dst) {
 	if (fflush(rdwr_dst) != 0) {
 		return -1;
 	}
+	return 0;
 }
 
 
@@ -258,7 +268,7 @@ static int tui_enable_raw_mode(void) {
  * @brief Restore original terminal mode (POSIX).
  * @details No-op when no state is saved.
  */
-static inline void tui_disable_raw_mode(void) {
+static void tui_disable_raw_mode(void) {
 	if (!tui_termios_saved) return;
 	if (!isatty(STDIN_FILENO)) return;
 
@@ -269,7 +279,7 @@ static inline void tui_disable_raw_mode(void) {
 #endif
 
 #ifdef _WIN32
-static inline void tui_disable_raw_mode(void);
+static void tui_disable_raw_mode(void);
 
 static DWORD tui_orig_mode;
 static int tui_mode_saved = 0;
@@ -280,7 +290,7 @@ static int tui_mode_saved = 0;
  * @details Saves the original console mode and registers an atexit handler.
  * Returns 0 on success and -1 on failure.
  */
-static inline int tui_enable_raw_mode(void) {
+static int tui_enable_raw_mode(void) {
 	HANDLE h = GetStdHandle(STD_INPUT_HANDLE);
 
 	if (h == INVALID_HANDLE_VALUE) return -1;
@@ -304,7 +314,7 @@ static inline int tui_enable_raw_mode(void) {
  * @brief Restore original console mode (Windows).
  * @details No-op when no state is saved.
  */
-static inline void tui_disable_raw_mode(void) {
+static void tui_disable_raw_mode(void) {
 	if (!tui_mode_saved) return;
 
 	HANDLE h = GetStdHandle(STD_INPUT_HANDLE);
@@ -323,7 +333,7 @@ static inline void tui_disable_raw_mode(void) {
  * @details Waits up to timeout_ms milliseconds. Returns the key code as an
  * unsigned char, or -1 on timeout or failure.
  */
-static inline int tui_poll_key(int timeout_ms) {
+static int tui_poll_key(int timeout_ms) {
 #ifndef _WIN32
 	fd_set rfds;
 	struct timeval tv;
@@ -364,13 +374,13 @@ static volatile sig_atomic_t tui_resize_flag = 0;
  * @brief Signal handler to mark a pending resize.
  * @details Sets an internal flag used by the resize handler.
  */
-static inline void tui_sigwinch_handler(int unused) { (void)unused; tui_resize_flag = 1; }
+static void tui_sigwinch_handler(int unused) { (void)unused; tui_resize_flag = 1; }
 
 /**
  * @brief Install resize signal handler when supported.
  * @details No-op on platforms without SIGWINCH.
  */
-static inline void tui_install_resize_handler(void) {
+static void tui_install_resize_handler(void) {
 #ifndef _WIN32
 #ifdef SIGWINCH
 	signal(SIGWINCH, tui_sigwinch_handler);
@@ -398,8 +408,8 @@ typedef enum {
  * @details Uses the current terminal size or a 24x80 fallback. Returns a new
  * context or NULL on failure.
  */
-static inline tui_ctx_status_t tui_ctx_new_ex(tui_ctx_t **out_ctx, FILE *out) {
-	unsigned short rows = 0, cols = 0;
+static tui_ctx_status_t tui_ctx_new_ex(tui_ctx_t **out_ctx, FILE *out) {
+	ae2fsys_trmpos_t rows = 0, cols = 0;
 
 	if (!out_ctx) return TUI_CTX_ERR_ARG;
 
@@ -446,7 +456,7 @@ static inline tui_ctx_status_t tui_ctx_new_ex(tui_ctx_t **out_ctx, FILE *out) {
  * @details Uses the current terminal size or a 24x80 fallback. Returns a new
  * context or NULL on failure.
  */
-static inline tui_ctx_t *tui_ctx_new(FILE *out) {
+static __attribute__((unused)) tui_ctx_t *tui_ctx_new(FILE *out) {
 	tui_ctx_t *ctx = NULL;
 
 	if (tui_ctx_new_ex(&ctx, out) != TUI_CTX_OK) return NULL;
@@ -460,7 +470,7 @@ static inline tui_ctx_t *tui_ctx_new(FILE *out) {
  * @brief Free a TUI context and its frames.
  * @details Safe to call with NULL.
  */
-static inline void tui_ctx_free(tui_ctx_t *ctx) {
+static void tui_ctx_free(tui_ctx_t *ctx) {
 	if (!ctx) return;
 
 	tui_frame_free(ctx->front);
@@ -473,12 +483,12 @@ static inline void tui_ctx_free(tui_ctx_t *ctx) {
  * @brief Handle a pending resize by updating frame sizes.
  * @details Returns 1 if resized, 0 if no resize, and -1 on failure.
  */
-static inline int tui_ctx_handle_resize(tui_ctx_t *ctx) {
+static int tui_ctx_handle_resize(tui_ctx_t *ctx) {
 	if (!ctx) return -1;
 	if (!tui_resize_flag) return 0;
 
 	tui_resize_flag = 0;
-	unsigned short rows = 0, cols = 0;
+	ae2fsys_trmpos_t rows = 0, cols = 0;
 
 	if (tui_get_size(&rows, &cols) == -1) return -1;
 	if (rows == 0 || cols == 0) return -1;
@@ -486,7 +496,7 @@ static inline int tui_ctx_handle_resize(tui_ctx_t *ctx) {
 	if (tui_frame_resize(ctx->back, rows, cols) == -1) return -1;
 
 	tui_frame_clear(ctx->back, ' ');
-	memset(ctx->front->cells, 0, ctx->front->rows * ctx->front->cols);
+	memset(ctx->front->cells, 0, (size_t)ctx->front->rows * (size_t)ctx->front->cols);
 
 	return 1;
 }
@@ -496,7 +506,7 @@ static inline int tui_ctx_handle_resize(tui_ctx_t *ctx) {
  * @brief Present back buffer differences to the output.
  * @details Diffs back against front and writes only changed spans.
  */
-static inline void tui_present(tui_ctx_t *ctx) {
+static void tui_present(tui_ctx_t *ctx) {
 	if (!ctx || !ctx->out) return;
 
 	tui_frame_t *f = ctx->back;
@@ -504,7 +514,7 @@ static inline void tui_present(tui_ctx_t *ctx) {
 
 	if (!f || !g) return;
 
-	size_t rows = f->rows, cols = f->cols;
+	size_t rows = (size_t)f->rows, cols = (size_t)f->cols;
 
 	for (size_t r = 0; r < rows; ++r) {
 		size_t c = 0;
@@ -522,7 +532,7 @@ static inline void tui_present(tui_ctx_t *ctx) {
 
 			size_t len = c - start;
 
-			tui_ansi_move_cursor(ctx->out, r, start);
+tui_ansi_move_cursor((ae2fsys_trmpos_t)r, (ae2fsys_trmpos_t)start);
 
 			for (size_t i = 0; i < len; ++i) {
 				char ch = tui_sanitize_ascii(f->cells[r * cols + start + i]);
