@@ -168,14 +168,9 @@ static int tui_frame_draw(FILE *rdwr_dst, const tui_frame_t *rd_frame) {
  * @brief Move cursor to a 0-based row/column position.
  * @details Emits an ANSI cursor move sequence to the output stream.
  */
-static int tui_ansi_move_cursor(FILE *rdwr_dst, const ae2fsys_trmpos_t c_row, const ae2fsys_trmpos_t c_col) {
-	if (!rdwr_dst) {
-		return -1;
-	}
+static void tui_ansi_move_cursor(const ae2fsys_trmpos_t c_row, const ae2fsys_trmpos_t c_col) {
 
 	ae2fsys_trm_goto_simple_imp(c_col, c_row);
-
-	return 0;
 
 }
 
@@ -183,7 +178,7 @@ static int tui_ansi_move_cursor(FILE *rdwr_dst, const ae2fsys_trmpos_t c_row, co
  * @brief Clear the screen and move cursor to home.
  * @details Emits ANSI clear and home sequences and flushes the stream.
  */
-static void tui_ansi_clear_screen() {
+static void tui_ansi_clear_screen(void) {
 	
 	ae2fsys_clear_trm_simple_imp();
 }
@@ -192,28 +187,40 @@ static void tui_ansi_clear_screen() {
  * @brief Hide the terminal cursor.
  * @details Emits the ANSI hide-cursor sequence and flushes the stream.
  */
-static void tui_ansi_hide_cursor(FILE *rdwr_dst) {
+static int tui_ansi_hide_cursor(FILE *rdwr_dst) {
 	if (!rdwr_dst) {
-		return;
+		return -1;
 	}
-	fprintf(rdwr_dst, "\x1b[?25l");
-	fflush(rdwr_dst);
+	if (fprintf(rdwr_dst, "\x1b[?25l") == -1) {
+		return -1;
+	}
+	if (fflush(rdwr_dst) != 0) {
+		return -1;
+	}
+	return 0;
 }
 
 /**
  * @brief Show the terminal cursor.
  * @details Emits the ANSI show-cursor sequence and flushes the stream.
  */
-static inline void tui_ansi_show_cursor(FILE *out) {
-	if (!out) return;
+static int tui_ansi_show_cursor(FILE *rdwr_dst) {
+	if (!rdwr_dst) {
+		return -1;
+	}
 
-	fprintf(out, "\x1b[?25h");
-	fflush(out);
+	if (fprintf(rdwr_dst, "\x1b[?25h") == -1) {
+		return -1;
+	}
+
+	if (fflush(rdwr_dst) != 0) {
+		return -1;
+	}
 }
 
 
 #ifndef _WIN32
-static inline void tui_disable_raw_mode(void);
+static void tui_disable_raw_mode(void);
 
 static struct termios tui_orig_termios;
 static int tui_termios_saved = 0;
@@ -224,7 +231,7 @@ static int tui_termios_saved = 0;
  * @details Saves the original termios settings and registers an atexit
  * handler. Returns 0 on success and -1 on failure.
  */
-static inline int tui_enable_raw_mode(void) {
+static int tui_enable_raw_mode(void) {
 	struct termios raw;
 
 	if (tui_termios_saved) return 0;
