@@ -18,7 +18,7 @@ static void tui_get_size(ae2fsys_trmpos_t *rdwr_row_len, ae2fsys_trmpos_t *rdwr_
 		return;
 	}
 
-	ae2fsys_get_trm_size_simple_imp(*rdwr_row_len, *rdwr_col_len);
+	ae2fsys_get_trm_size_simple_imp(*rdwr_col_len, *rdwr_row_len);
 }
 
 typedef struct {
@@ -111,7 +111,7 @@ static void tui_frame_clear(tui_frame_t *rdwr_frame, const char c_c) {
  * @details Returns 0 on success and -1 on failure.
  */
 static int tui_frame_resize(tui_frame_t *rdwr_frame, const ae2fsys_trmpos_t c_row_len, const ae2fsys_trmpos_t c_col_len) {
-	if (!rdwr_frame || !c_row_len || !c_col_len || c_col_len > SIZE_MAX / (size_t)c_row_len) {
+	if (!rdwr_frame || !c_row_len || !c_col_len || (size_t)c_col_len > SIZE_MAX / (size_t)c_row_len) {
 		return -1;
 	}
 
@@ -141,15 +141,26 @@ static int tui_frame_resize(tui_frame_t *rdwr_frame, const ae2fsys_trmpos_t c_ro
  * @brief Draw the frame to an output stream with newlines.
  * @details Writes each row followed by a newline and flushes the stream.
  */
-static inline void tui_frame_draw(FILE *out, const tui_frame_t *f) {
-	if (!f || !out) return;
-
-	for (size_t r = 0; r < f->rows; ++r) {
-		fwrite(f->cells + r * f->cols, 1, f->cols, out);
-		fputc('\n', out);
+static int tui_frame_draw(FILE *rdwr_dst, const tui_frame_t *rd_frame) {
+	if (!rdwr_dst || !rd_frame) {
+		return -1;
 	}
 
-	fflush(out);
+	for (ae2fsys_trmpos_t r=0; r<rd_frame->m_row_len; ++r) {
+		size_t tmp_write_size = 0;
+		tmp_write_size =  fwrite(rd_frame->m_cells + r * rd_frame->m_col_len, sizeof(char),
+				(size_t)rd_frame->m_col_len, rdwr_dst);	
+		if (tmp_write_size != (size_t)rd_frame->m_col_len * sizeof(char)) {
+			return -1;
+		}
+		fputc('\n', rdwr_dst);
+	}
+
+	if (fflush(rdwr_dst) != 0) {
+		return -1;
+	}
+
+	return 0;
 }
 
 
@@ -157,32 +168,36 @@ static inline void tui_frame_draw(FILE *out, const tui_frame_t *f) {
  * @brief Move cursor to a 0-based row/column position.
  * @details Emits an ANSI cursor move sequence to the output stream.
  */
-static inline void tui_ansi_move_cursor(FILE *out, size_t r, size_t c) {
-	if (!out) return;
+static int tui_ansi_move_cursor(FILE *rdwr_dst, const ae2fsys_trmpos_t c_row, const ae2fsys_trmpos_t c_col) {
+	if (!rdwr_dst) {
+		return -1;
+	}
 
-	fprintf(out, "\x1b[%zu;%zuH", r + 1, c + 1);
+	ae2fsys_trm_goto_simple_imp(c_col, c_row);
+
+	return 0;
+
 }
 
 /**
  * @brief Clear the screen and move cursor to home.
  * @details Emits ANSI clear and home sequences and flushes the stream.
  */
-static inline void tui_ansi_clear_screen(FILE *out) {
-	if (!out) return;
-
-	fprintf(out, "\x1b[2J\x1b[H");
-	fflush(out);
+static void tui_ansi_clear_screen() {
+	
+	ae2fsys_clear_trm_simple_imp();
 }
 
 /**
  * @brief Hide the terminal cursor.
  * @details Emits the ANSI hide-cursor sequence and flushes the stream.
  */
-static inline void tui_ansi_hide_cursor(FILE *out) {
-	if (!out) return;
-
-	fprintf(out, "\x1b[?25l");
-	fflush(out);
+static void tui_ansi_hide_cursor(FILE *rdwr_dst) {
+	if (!rdwr_dst) {
+		return;
+	}
+	fprintf(rdwr_dst, "\x1b[?25l");
+	fflush(rdwr_dst);
 }
 
 /**
