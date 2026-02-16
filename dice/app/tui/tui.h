@@ -12,6 +12,11 @@
 #include <unistd.h>
 #include <sys/select.h>
 #include <sys/time.h>
+#include <conio.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  * @brief Get current terminal size in rows and columns.
