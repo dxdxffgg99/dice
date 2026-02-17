@@ -35,7 +35,9 @@ typedef struct {
 } tui_frame_t;
 
 static int tui_get_size(ae2fsys_trmpos_t *rdwr_row_len, ae2fsys_trmpos_t *rdwr_col_len) {
-	if (!rdwr_row_len || !rdwr_col_len) return -1;
+	if (!rdwr_row_len || !rdwr_col_len) {
+		return -1;
+	}
 
 	ae2fsys_trmpos_t rows = 0;
 	ae2fsys_trmpos_t cols = 0;
