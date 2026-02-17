@@ -148,11 +148,11 @@ static parse_server_status_t parse_server_arg(
 static void tui_write_text(tui_frame_t *f, ae2fsys_trmpos_t row, ae2fsys_trmpos_t col, const char *text) {
 	if (!f || !text) return;
 
-	if (row >= f->rows || col >= f->cols) return;
+	if (row >= f->m_row_len || col >= f->m_col_len) return;
 
 	ae2fsys_trmpos_t c = col;
 
-	for (size_t i = 0; text[i] != '\0' && c < f->cols; ++i, ++c) {
+	for (size_t i = 0; text[i] != '\0' && c < f->m_col_len; ++i, ++c) {
 		tui_frame_set_char(f, row, c, text[i]);
 	}
 }
@@ -160,13 +160,12 @@ static void tui_write_text(tui_frame_t *f, ae2fsys_trmpos_t row, ae2fsys_trmpos_
 static void tui_draw_hline(tui_frame_t *f, ae2fsys_trmpos_t row, char ch) {
 	if (!f) return;
 
-	for (ae2fsys_trmpos_t c = 0; c < f->cols; ++c) {
+	for (ae2fsys_trmpos_t c = 0; c < f->m_col_len; ++c) {
 		tui_frame_set_char(f, row, c, ch);
 	}
 }
 
 int main(int argc, char **argv) {
-	/* parse optional server address from argv[1] */
 	char server_host[256] = "";
 	char server_ip[INET6_ADDRSTRLEN] = "";
 
@@ -222,7 +221,6 @@ int main(int argc, char **argv) {
 
 	input[0] = '\0';
 
-	/* clear screen and hide cursor after raw mode enabled */
 	tui_ansi_clear_screen();
 	tui_ansi_hide_cursor(ctx->out);
 
@@ -238,7 +236,7 @@ int main(int argc, char **argv) {
 
 		tui_frame_clear(f, ' ');
 
-		if (f->rows < 4 || f->cols < 10) {
+		if (f->m_row_len < 4 || f->m_col_len < 10) {
 			tui_write_text(f, 0, 0, "terminal too small");
 			tui_present(ctx);
 
@@ -258,7 +256,7 @@ int main(int argc, char **argv) {
 		tui_draw_hline(f, 1, '-');
 
 		size_t msg_top = 2;
-		size_t msg_bottom = (size_t)(f->rows - 3);
+		size_t msg_bottom = (size_t)(f->m_row_len - 3);
 		size_t msg_rows = (msg_bottom >= msg_top) ? (msg_bottom - msg_top + 1) : 0;
 
 		if (msg_rows == 0) {
@@ -282,9 +280,9 @@ int main(int argc, char **argv) {
 			tui_write_text(f, (ae2fsys_trmpos_t)(msg_top + i), 0, lines[idx]);
 		}
 
-		tui_draw_hline(f, f->rows - 2, '-');
-		tui_write_text(f, f->rows - 1, 0, "> ");
-		tui_write_text(f, f->rows - 1, 2, input);
+		tui_draw_hline(f, f->m_row_len - 2, '-');
+		tui_write_text(f, f->m_row_len - 1, 0, "> ");
+		tui_write_text(f, f->m_row_len - 1, 2, input);
 		tui_present(ctx);
 
 		int ch = tui_poll_key(50);
