@@ -266,7 +266,7 @@ static int tui_enable_raw_mode(void) {
 		return -1;
 	}
 	if (tcgetattr(STDIN_FILENO, &tui_orig_termios) == -1) {
-		return -1
+		return -1;
 	};
 
 	raw = tui_orig_termios;
