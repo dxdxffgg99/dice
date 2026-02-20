@@ -6,26 +6,16 @@
 #include <stdint.h>
 #include <signal.h>
 #include <string.h>
-
-#ifdef _WIN32
-#include <windows.h>
-#else
-#if defined(_POSIX_VERSION)
-#include <unistd.h>
-
-#endif
-#endif
-#include <termios.h>
-#ifndef _WIN32
-#include <sys/select.h>
-#endif
-#ifdef _WIN32
-#include <conio.h>
-#endif
 #include <ae2f/Sys/Trm.h>
 
-#ifdef __cplusplus
-extern "C" {
+#if ae2f_Sys_WIN(!)0
+#include <windows.h>
+#include <conio.h>
+#endif
+#if ae2f_Sys__posix(!)0
+#include <unistd.h>
+#include <sys/select.h>
+#include <termios.h>
 #endif
 
 typedef struct {
@@ -66,7 +56,7 @@ static ae2f_inline char tui_sanitize_ascii(const char c_c) {
  * @brief Allocate a new frame with the given size.
  * @details Returns a newly allocated frame or NULL on failure.
  */
-static void tui_frame_new(tui_frame_t *rdwr_frame, const ae2fsys_trmpos_t c_row_len, const ae2fsys_trmpos_t c_col_len) {
+static void tui_frame_new(tui_frame_t *rdwr_frame, const ae2fsys_trmpos_t c_col_len, const ae2fsys_trmpos_t c_row_len) {
 
 	if (!c_row_len || !c_col_len || (size_t)c_col_len > SIZE_MAX / (size_t)c_row_len || !rdwr_frame) {
 		return;
@@ -77,8 +67,8 @@ static void tui_frame_new(tui_frame_t *rdwr_frame, const ae2fsys_trmpos_t c_row_
 		return;
 	}
 
-	rdwr_frame->m_row_len = c_row_len;
 	rdwr_frame->m_col_len = c_col_len;
+	rdwr_frame->m_row_len = c_row_len;
 }
 
 /**
@@ -215,12 +205,15 @@ static int tui_ansi_hide_cursor(FILE *rdwr_dst) {
 	if (!rdwr_dst) {
 		return -1;
 	}
+
 	if (fprintf(rdwr_dst, "\x1b[?25l") == -1) {
 		return -1;
 	}
+
 	if (fflush(rdwr_dst) != 0) {
 		return -1;
 	}
+
 	return 0;
 }
 
@@ -240,11 +233,12 @@ static int tui_ansi_show_cursor(FILE *rdwr_dst) {
 	if (fflush(rdwr_dst) != 0) {
 		return -1;
 	}
+
 	return 0;
 }
 
 
-#ifndef _WIN32
+#if ae2f_Sys_WIN(!)1
 static void tui_disable_raw_mode(void);
 
 static struct termios tui_orig_termios;
@@ -276,8 +270,10 @@ static int tui_enable_raw_mode(void) {
 	raw.c_cc[VMIN] = 0;
 	raw.c_cc[VTIME] = 1;
 
-	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) return -1;
-
+	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) {
+		return -1;
+	
+	}
 	tui_termios_saved = 1;
 
 	atexit(tui_disable_raw_mode);
@@ -303,7 +299,7 @@ static inline void tui_disable_raw_mode(void) {
 }
 #endif
 
-#ifdef _WIN32
+#if ae2f_Sys_WIN(!)0
 static inline void tui_disable_raw_mode(void);
 
 static DWORD tui_orig_mode;
@@ -369,7 +365,7 @@ static inline void tui_disable_raw_mode(void) {
  * unsigned char, or -1 on timeout or failure.
  */
 static inline int tui_poll_key(int timeout_ms) {
-#ifndef _WIN32
+#if ae2f_Sys_WIN(!)0
 	fd_set rfds;
 	struct timeval tv;
 
@@ -391,16 +387,16 @@ static inline int tui_poll_key(int timeout_ms) {
 	return (unsigned char)ch;
 #else
 	if (timeout_ms < 0) {
-		timeout_ms = INFINITE;
+		timeout_ms = 2147483647;
 	}
 
-	HANDLE h = GetStdHandle(STD_INPUT_HANDLE);
+	int h = GetStdHandle(STD_INPUT_HANDLE);
 
 	if (h == INVALID_HANDLE_VALUE) {
 		return -1;
 	}
 
-	DWORD wait = WaitForSingleObject(h, (DWORD)timeout_ms);
+	int wait = WaitForSingleObject(h, (int)timeout_ms);
 
 	if (wait != WAIT_OBJECT_0) {
 		return -1;
@@ -409,7 +405,7 @@ static inline int tui_poll_key(int timeout_ms) {
 		return -1;
 	}
 
-	return (unsigned char)_getch();
+	return (int)_getch();
 #endif
 }
 
@@ -466,9 +462,17 @@ static inline tui_ctx_status_t tui_ctx_new_ex(tui_ctx_t **out_ctx, FILE *out) {
         rows = 24;
         cols = 80;
     }
+	
     if (rows == 0 || cols == 0) { 
 		rows = 24; cols = 80;
+		tui_ctx_t *ctx = NULL;
+
+		if (tui_ctx_new_ex(&ctx, out) != TUI_CTX_OK) {
+			return NULL;
+		}
+		return ctx;
 	}
+}
 
     tui_ctx_t *ctx = malloc(sizeof *ctx);
 
@@ -482,6 +486,7 @@ static inline tui_ctx_status_t tui_ctx_new_ex(tui_ctx_t **out_ctx, FILE *out) {
         free(ctx->front);
         free(ctx->back);
         free(ctx);
+
         return TUI_CTX_ERR_ALLOC;
     }
 
@@ -491,9 +496,11 @@ static inline tui_ctx_status_t tui_ctx_new_ex(tui_ctx_t **out_ctx, FILE *out) {
     if (!ctx->front->m_cells || !ctx->back->m_cells) {
         tui_frame_free(ctx->front);
         tui_frame_free(ctx->back);
+
 		free(ctx->front);
 		free(ctx->back);
         free(ctx);
+
         return TUI_CTX_ERR_ALLOC;
     }
 
@@ -503,12 +510,21 @@ static inline tui_ctx_status_t tui_ctx_new_ex(tui_ctx_t **out_ctx, FILE *out) {
     if (tui_enable_raw_mode() == -1) {
         tui_frame_free(ctx->front);
         tui_frame_free(ctx->back);
+
 		free(ctx->front);
 		free(ctx->back);
         free(ctx);
+
         return TUI_CTX_ERR_RAW_MODE;
     }
+	tui_ctx_t *ctx = NULL;
 
+	if (tui_ctx_new_ex(&ctx, out) != TUI_CTX_OK) {
+		return NULL;
+	}
+
+	return ctx;
+}
     tui_install_resize_handler();
 
     *out_ctx = ctx;
@@ -529,9 +545,6 @@ static inline tui_ctx_t *tui_ctx_new(FILE *out) {
 	return ctx;
 }
 
-
-
-
 /**
  * @brief Free a TUI context and its frames.
  * @details Safe to call with NULL.
@@ -540,49 +553,58 @@ static inline void tui_ctx_free(tui_ctx_t *ctx) {
 	if (!ctx) {
 		return;
 	}
-
 	tui_frame_free(ctx->front);
 	tui_frame_free(ctx->back);
+
 	free(ctx->front);
 	free(ctx->back);
 	free(ctx);
 }
-
 
 /**
  * @brief Handle a pending resize by updating frame sizes.
  * @details Returns 1 if resized, 0 if no resize, and -1 on failure.
  */
 static inline int tui_ctx_handle_resize(tui_ctx_t *ctx) {
-	if (!ctx) {
-		return -1;
-	}
-	if (!tui_resize_flag) {
-		return 0;
+
+	enum CTX_RESIZE_ {
+		CTX_RESIZE_FAIL = -1,
+		CTX_RESIZE_NO,
+		CTX_RESIZE_SUCCESS,
 	}
 
-	tui_resize_flag = 0;
+	ui_resize_flag = 0;
 	ae2fsys_trmpos_t rows = 0, cols = 0;
 
+	if (!ctx) {
+		return CTX_RESIZE_FAIL;
+	}
+
 	if (tui_get_size(&rows, &cols) == -1) {
-		return -1;
+		return CTX_RESIZE_FAIL;
 	}
+
 	if (rows == 0 || cols == 0) {
-		return -1;
+		return CTX_RESIZE_FAIL;
 	}
+
 	if (tui_frame_resize(ctx->front, rows, cols) == -1) {
-		return -1;
+		return CTX_RESIZE_FAIL;
 	}
+
 	if (tui_frame_resize(ctx->back, rows, cols) == -1) {
-		return -1;
+		return CTX_RESIZE_FAIL;
+	}
+
+	if (!tui_resize_flag) {
+		return CTX_RESIZE_NO;
 	}
 
 	tui_frame_clear(ctx->back, ' ');
 	memset(ctx->front->m_cells, 0, (size_t)ctx->front->m_row_len * (size_t)ctx->front->m_col_len);
 
-	return 1;
+	return CTX_RESIZE_SUCCESS;
 }
-
 
 /**
  * @brief Present back buffer differences to the output.
@@ -611,11 +633,29 @@ static inline void tui_present(tui_ctx_t *ctx) {
 				++c;
 				continue;
 			}
+		}
+	}
+
+	for (ae2fsys_trmpos_t r = 0; r < f->m_row_len; ++r) {
+		ae2fsys_trmpos_t c = 0;
+
+		while (c < f->m_col_len) {
+			size_t idx = (size_t)r * (size_t)f->m_col_len + (size_t)c;
+
+			char b = g->m_cells[idx];
+
+			if (f->m_cells[idx] == b) {
+				++c;
+				continue;
+			}
 			ae2fsys_trmpos_t start = c;
 
 			while (c < f->m_col_len) {
 				size_t idx_diff = (size_t)r * (size_t)f->m_col_len + (size_t)c;
-				if (f->m_cells[idx_diff] == g->m_cells[idx_diff]) break;
+
+				if (f->m_cells[idx_diff] == g->m_cells[idx_diff]) {
+					break;
+				}
 				++c;
 			}
 
@@ -626,7 +666,9 @@ static inline void tui_present(tui_ctx_t *ctx) {
 			for (ae2fsys_trmpos_t i = 0; i < len; ++i) {
 				size_t idx_write = (size_t)r * (size_t)f->m_col_len + (size_t)start + (size_t)i;
 				char ch = tui_sanitize_ascii(f->m_cells[idx_write]);
+
 				fputc(ch, ctx->out);
+
 				g->m_cells[idx_write] = ch;
 			}
 		}
@@ -634,9 +676,5 @@ static inline void tui_present(tui_ctx_t *ctx) {
 
 	fflush(ctx->out);
 }
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
