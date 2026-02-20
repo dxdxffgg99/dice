@@ -11,8 +11,7 @@
 #if ae2f_Sys_WIN(!)0
 #include <windows.h>
 #include <conio.h>
-#endif
-#if ae2f_Sys__posix(!)0
+#else
 #include <unistd.h>
 #include <sys/select.h>
 #include <termios.h>
@@ -25,17 +24,16 @@ typedef struct {
 } tui_frame_t;
 
 static int tui_get_size(ae2fsys_trmpos_t *rdwr_row_len, ae2fsys_trmpos_t *rdwr_col_len) {
+	ae2fsys_trmpos_t rows = 0;
+	ae2fsys_trmpos_t cols = 0;
+	
 	if (!rdwr_row_len || !rdwr_col_len) {
 		return -1;
 	}
 
-	ae2fsys_trmpos_t rows = 0;
-	ae2fsys_trmpos_t cols = 0;
 	_ae2fsys_get_trm_size_simple_imp(TSZ, cols, rows);
 
 	if (rows <= 0 || cols <= 0) {
-		*rdwr_row_len = 24;
-		*rdwr_col_len = 80;
 		return -1;
 	}
 
@@ -58,7 +56,7 @@ static ae2f_inline char tui_sanitize_ascii(const char c_c) {
  */
 static void tui_frame_new(tui_frame_t *rdwr_frame, const ae2fsys_trmpos_t c_col_len, const ae2fsys_trmpos_t c_row_len) {
 
-	if (!c_row_len || !c_col_len || (size_t)c_col_len > SIZE_MAX / (size_t)c_row_len || !rdwr_frame) {
+	if (!c_row_len || !c_col_len || !rdwr_frame ((c_col_len * c_row_len) / c_row_len != )) {
 		return;
 	}
 
@@ -127,14 +125,16 @@ static void tui_frame_clear(tui_frame_t *rdwr_frame, const char c_c) {
  * @details Returns 0 on success and -1 on failure.
  */
 static int tui_frame_resize(tui_frame_t *rdwr_frame, const ae2fsys_trmpos_t c_row_len, const ae2fsys_trmpos_t c_col_len) {
-	if (!rdwr_frame || !c_row_len || !c_col_len || (size_t)c_col_len > SIZE_MAX / (size_t)c_row_len) {
+	if (!rdwr_frame || !c_row_len || !c_col_len) {
 		return -1;
 	}
 
 	char *new_cells	= (char*)malloc(sizeof(char) * (size_t)c_col_len * (size_t)c_row_len);
+
 	if (!new_cells) {
 		return -1;
-	}	
+	}
+
 	memset(new_cells, 0, (size_t)c_col_len * (size_t)c_row_len);
 
 	ae2fsys_trmpos_t min_row_len = c_row_len < rdwr_frame->m_row_len ? c_row_len : rdwr_frame->m_row_len;
@@ -143,6 +143,7 @@ static int tui_frame_resize(tui_frame_t *rdwr_frame, const ae2fsys_trmpos_t c_ro
 	for (ae2fsys_trmpos_t r=0; r<min_row_len; ++r) {
 		memcpy(new_cells + r * c_col_len, rdwr_frame->m_cells + r * rdwr_frame->m_col_len, (size_t)min_col_len);
 	}
+
 	free(rdwr_frame->m_cells);
 
 	rdwr_frame->m_cells = new_cells;
@@ -285,7 +286,7 @@ static int tui_enable_raw_mode(void) {
  * @brief Restore original terminal mode (POSIX).
  * @details No-op when no state is saved.
  */
-static inline void tui_disable_raw_mode(void) {
+static ae2f_inline void tui_disable_raw_mode(void) {
 	if (!tui_termios_saved) {
 		return;
 	}
@@ -300,7 +301,7 @@ static inline void tui_disable_raw_mode(void) {
 #endif
 
 #if ae2f_Sys_WIN(!)0
-static inline void tui_disable_raw_mode(void);
+static ae2f_inline void tui_disable_raw_mode(void);
 
 static DWORD tui_orig_mode;
 static int tui_mode_saved = 0;
@@ -311,7 +312,7 @@ static int tui_mode_saved = 0;
  * @details Saves the original console mode and registers an atexit handler.
  * Returns 0 on success and -1 on failure.
  */
-static inline int tui_enable_raw_mode(void) {
+static ae2f_inline int tui_enable_raw_mode(void) {
 	HANDLE h = GetStdHandle(STD_INPUT_HANDLE);
 
 	if (h == INVALID_HANDLE_VALUE) {
@@ -341,7 +342,7 @@ static inline int tui_enable_raw_mode(void) {
  * @brief Restore original console mode (Windows).
  * @details No-op when no state is saved.
  */
-static inline void tui_disable_raw_mode(void) {
+static ae2f_inline void tui_disable_raw_mode(void) {
 	if (!tui_mode_saved) {
 		return;
 	}
@@ -364,7 +365,7 @@ static inline void tui_disable_raw_mode(void) {
  * @details Waits up to timeout_ms milliseconds. Returns the key code as an
  * unsigned char, or -1 on timeout or failure.
  */
-static inline int tui_poll_key(int timeout_ms) {
+static ae2f_inline int tui_poll_key(int timeout_ms) {
 #if ae2f_Sys_WIN(!)0
 	fd_set rfds;
 	struct timeval tv;
@@ -384,7 +385,7 @@ static inline int tui_poll_key(int timeout_ms) {
 	ssize_t n = read(STDIN_FILENO, &ch, 1);
 
 	if (n <= 0) return -1;
-	return (unsigned char)ch;
+	return (int)ch;
 #else
 	if (timeout_ms < 0) {
 		timeout_ms = 2147483647;
@@ -410,12 +411,12 @@ static inline int tui_poll_key(int timeout_ms) {
 }
 
 
-static volatile sig_atomic_t tui_resize_flag = 0;
+static sig_atomic_t tui_resize_flag = 0;
 /**
  * @brief Signal handler to mark a pending resize.
  * @details Sets an internal flag used by the resize handler.
  */
-static inline void tui_sigwinch_handler(int unused) {
+static ae2f_inline void tui_sigwinch_handler(int unused) {
 	(void)unused; tui_resize_flag = 1;
 }
 
@@ -423,7 +424,7 @@ static inline void tui_sigwinch_handler(int unused) {
  * @brief Install resize signal handler when supported.
  * @details No-op on platforms without SIGWINCH.
  */
-static inline void tui_install_resize_handler(void) {
+static ae2f_inline void tui_install_resize_handler(void) {
 #ifndef _WIN32
 #ifdef SIGWINCH
 	signal(SIGWINCH, tui_sigwinch_handler);
@@ -451,17 +452,12 @@ typedef enum {
  * @details Uses the current terminal size or a 24x80 fallback. Returns a new
  * context or NULL on failure.
  */
-static inline tui_ctx_status_t tui_ctx_new_ex(tui_ctx_t **out_ctx, FILE *out) {
+static ae2f_inline tui_ctx_status_t tui_ctx_new_ex(tui_ctx_t **out_ctx, FILE *out) {
     ae2fsys_trmpos_t rows = 0, cols = 0;
 
     if (!out_ctx) return TUI_CTX_ERR_ARG;
 
     *out_ctx = NULL;
-
-    if (tui_get_size(&rows, &cols) == -1) {
-        rows = 24;
-        cols = 80;
-    }
 	
     if (rows == 0 || cols == 0) { 
 		rows = 24; cols = 80;
@@ -472,9 +468,8 @@ static inline tui_ctx_status_t tui_ctx_new_ex(tui_ctx_t **out_ctx, FILE *out) {
 		}
 		return ctx;
 	}
-}
 
-    tui_ctx_t *ctx = malloc(sizeof *ctx);
+    tui_ctx_t *ctx = ctx;
 
     if (!ctx) return TUI_CTX_ERR_ALLOC;
 
@@ -523,8 +518,6 @@ static inline tui_ctx_status_t tui_ctx_new_ex(tui_ctx_t **out_ctx, FILE *out) {
 		return NULL;
 	}
 
-	return ctx;
-}
     tui_install_resize_handler();
 
     *out_ctx = ctx;
@@ -536,7 +529,7 @@ static inline tui_ctx_status_t tui_ctx_new_ex(tui_ctx_t **out_ctx, FILE *out) {
  * @details Uses the current terminal size or a 24x80 fallback. Returns a new
  * context or NULL on failure.
  */
-static inline tui_ctx_t *tui_ctx_new(FILE *out) {
+static ae2f_inline tui_ctx_t *tui_ctx_new(FILE *out) {
 	tui_ctx_t *ctx = NULL;
 
 	if (tui_ctx_new_ex(&ctx, out) != TUI_CTX_OK) {
@@ -549,7 +542,7 @@ static inline tui_ctx_t *tui_ctx_new(FILE *out) {
  * @brief Free a TUI context and its frames.
  * @details Safe to call with NULL.
  */
-static inline void tui_ctx_free(tui_ctx_t *ctx) {
+static ae2f_inline void tui_ctx_free(tui_ctx_t *ctx) {
 	if (!ctx) {
 		return;
 	}
@@ -565,7 +558,7 @@ static inline void tui_ctx_free(tui_ctx_t *ctx) {
  * @brief Handle a pending resize by updating frame sizes.
  * @details Returns 1 if resized, 0 if no resize, and -1 on failure.
  */
-static inline int tui_ctx_handle_resize(tui_ctx_t *ctx) {
+static ae2f_inline int tui_ctx_handle_resize(tui_ctx_t *ctx) {
 
 	enum CTX_RESIZE_ {
 		CTX_RESIZE_FAIL = -1,
@@ -610,7 +603,7 @@ static inline int tui_ctx_handle_resize(tui_ctx_t *ctx) {
  * @brief Present back buffer differences to the output.
  * @details Diffs back against front and writes only changed spans.
  */
-static inline void tui_present(tui_ctx_t *ctx) {
+static ae2f_inline void tui_present(tui_ctx_t *ctx) {
 	if (!ctx || !ctx->out) {
 		return;
 	}
