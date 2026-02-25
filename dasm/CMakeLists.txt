@@ -25,6 +25,13 @@ endif()
 cmake_minimum_required(VERSION 3.10)
 project(libdice VERSION 0)
 
+# ================================
+# TODO : Remove
+set(CMAKE_C_STANDARD 90)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
+# =================================
+
 file(GLOB_RECURSE asmdice_c ${CMAKE_CURRENT_SOURCE_DIR}/lib/*)
 file(GLOB_RECURSE asmdice_h ${CMAKE_CURRENT_SOURCE_DIR}/inc/*)
 
