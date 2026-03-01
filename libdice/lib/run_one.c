@@ -57,7 +57,7 @@ static ae2f_inline ae2f_ccpure libdice_word_t __strequal2(
 	return !(c_str2[rd_mem2] ^ c_str[rd_mem]) & (!(__strcount32(c_str[rd_mem]) & 4));
 }
 
-static ae2f_inline ae2f_ccpure libdice_word_t __strequal(
+ae2f_unused static ae2f_inline ae2f_ccpure libdice_word_t __strequal(
 		const libdice_word_t *ae2f_restrict rd_mem,
 		const libdice_word_t c_num_mem,
 		libdice_word_t c_str_0,
