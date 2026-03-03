@@ -114,36 +114,38 @@ ae2f_inline dice_tui_status_t dice_tui_set_char(ae2fsys_trmpos_t x, ae2fsys_trmp
     return DICE_TUI_SUCCESS;
 }
 
-ae2f_inline dice_tui_status_t dice_tui_render(void) {
-    size_t x, y, width, height;
-
+ae2_inline dice_tui_status_t dice_tui_render(void) {
     if (!(dice_tui_ctx.m_back && dice_tui_ctx.m_prev)) {
         return DICE_TUI_ERR_NULL_POINTER;
     }
 
-    width  = (size_t)dice_tui_ctx.m_width;
-    height = (size_t)dice_tui_ctx.m_height;
+    size_t width = (size_t)dice_tui_ctx.m_width;
+    size_t height = (size_t)dice_tui_ctx.m_height;
 
-    for (y = 0; y < height; ++y) {
+    for (size_t y = 0; y < height; ++y) {
         size_t row_offset = y * width;
-        int cursor_set = 0; 
+        size_t x = 0;
 
-        for (x = 0; x < width; ++x) {
+        while (x < width) {
             size_t i = row_offset + x;
-            char nb = dice_tui_ctx.m_back[i];
 
-            if (nb != dice_tui_ctx.m_prev[i]) {
-                if (!cursor_set) {
-                    _ae2fsys_trm_goto_simple_imp(L, (ae2fsys_trmpos_t)(x + 1), (ae2fsys_trmpos_t)(y + 1));
-                    cursor_set = 1;
-                }
-                fputc(nb, stdout);
-                dice_tui_ctx.m_prev[i] = nb;
-            } else {
-                cursor_set = 0;
+            if (dice_tui_ctx.m_back[i] == dice_tui_ctx.m_prev[i]) {
+                x++;
+                continue;
             }
+
+            _ae2fsys_trm_goto_simple_imp(L, (ae2fsys_trmpos_t)(x + 1), (ae2fsys_trmpos_t)(y + 1));
+
+            size_t start_x = x;
+            while (x < width && dice_tui_ctx.m_back[row_offset + x] != dice_tui_ctx.m_prev[row_offset + x]) {
+                dice_tui_ctx.m_prev[row_offset + x] = dice_tui_ctx.m_back[row_offset + x];
+                x++;
+            }
+
+            fwrite(&dice_tui_ctx.m_prev[row_offset + start_x], sizeof(char), x - start_x, stdout);
         }
     }
+
     fflush(stdout);
     return DICE_TUI_SUCCESS;
 }
