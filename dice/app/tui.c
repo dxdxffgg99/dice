@@ -10,19 +10,20 @@
 dice_tui_ctx_t dice_tui_ctx = {0};
 
 static dice_tui_status_t dice_tui_realloc_buffers(size_t total) {
+    char *n_back = (char *)malloc(total);
+    char *n_prev = (char *)malloc(total);
+
+    ae2f_unexpected_but_if(!(n_back && n_prev)) {
+        free(n_back);
+        free(n_prev);
+        return DICE_TUI_ERR_MALLOC_FAILED;
+    }
+
     free(dice_tui_ctx.m_back);
     free(dice_tui_ctx.m_prev);
 
-    dice_tui_ctx.m_back = (char *)malloc(total);
-    dice_tui_ctx.m_prev = (char *)malloc(total);
-
-    ae2f_unexpected_but_if(!(dice_tui_ctx.m_back && dice_tui_ctx.m_prev)) {
-        free(dice_tui_ctx.m_back);
-        free(dice_tui_ctx.m_prev);
-        dice_tui_ctx.m_back = NULL;
-        dice_tui_ctx.m_prev = NULL;
-        return DICE_TUI_ERR_MALLOC_FAILED;
-    }
+    dice_tui_ctx.m_back = n_back;
+    dice_tui_ctx.m_prev = n_prev;
 
     memset(dice_tui_ctx.m_back, ' ', total);
     memset(dice_tui_ctx.m_prev, '\0', total);
@@ -41,7 +42,7 @@ dice_tui_status_t dice_tui_get_size(void) {
     w = (size_t)dice_tui_ctx.m_width;
     h = (size_t)dice_tui_ctx.m_height;
 
-    ae2f_unexpected_but_if(w * h < h || w * h < w) {
+    ae2f_unexpected_but_if(h != 0u && w > SIZE_MAX / h) {
         return DICE_TUI_ERR_BUFFER_OVERFLOW;
     }
     return DICE_TUI_SUCCESS;
@@ -66,16 +67,22 @@ dice_tui_status_t dice_tui_init(void) {
 
     status = dice_tui_realloc_buffers(total);
     ae2f_unexpected_but_if(status != DICE_TUI_SUCCESS) {
-        memset(&dice_tui_ctx, 0, sizeof(dice_tui_ctx));
         return status;
     }
+
+    dice_tui_ctx.init_flag = 1;
 
     return DICE_TUI_SUCCESS;
 }
 
 dice_tui_status_t dice_tui_resize(void) {
     dice_tui_status_t status;
+    ae2fsys_trmpos_t old_width;
+    ae2fsys_trmpos_t old_height;
     size_t total;
+
+    old_width = dice_tui_ctx.m_width;
+    old_height = dice_tui_ctx.m_height;
 
     status = dice_tui_get_size();
     ae2f_unexpected_but_if(status != DICE_TUI_SUCCESS) {
@@ -86,7 +93,8 @@ dice_tui_status_t dice_tui_resize(void) {
     
     status = dice_tui_realloc_buffers(total);
     ae2f_unexpected_but_if(status != DICE_TUI_SUCCESS) {
-        memset(&dice_tui_ctx, 0, sizeof(dice_tui_ctx));
+        dice_tui_ctx.m_width = old_width;
+        dice_tui_ctx.m_height = old_height;
         return status;
     }
 
@@ -145,11 +153,15 @@ ae2f_inline dice_tui_status_t dice_tui_render(void) {
                 x++;
             }
 
-            fwrite(&dice_tui_ctx.m_prev[row_offset + start_x], sizeof(char), x - start_x, stdout);
+            if (fwrite(&dice_tui_ctx.m_prev[row_offset + start_x], sizeof(char), x - start_x, stdout) != x - start_x) {
+                return DICE_TUI_ERR_IO_FAILED;
+            }
         }
     }
 
-    fflush(stdout);
+    ae2f_unexpected_but_if(fflush(stdout) != 0) {
+        return DICE_TUI_ERR_IO_FAILED;
+    }
 
     return DICE_TUI_SUCCESS;
 }

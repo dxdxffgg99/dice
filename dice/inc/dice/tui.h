@@ -22,6 +22,6 @@ void dice_tui_shutdown(void);
 
 ae2f_inline dice_tui_status_t dice_tui_render(void);
 ae2f_inline dice_tui_status_t dice_tui_clear(void);
-ae2f_inline dice_tui_status_t dice_tui_set_char(int x, int y, char c);
+ae2f_inline dice_tui_status_t dice_tui_set_char(ae2fsys_trmpos_t x, ae2fsys_trmpos_t y, char c);
 
 #endif
