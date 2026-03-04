@@ -116,7 +116,7 @@ ae2f_inline dice_tui_status_t dice_tui_set_char(ae2fsys_trmpos_t x, ae2fsys_trmp
     return DICE_TUI_SUCCESS;
 }
 
-ae2_inline dice_tui_status_t dice_tui_render(void) {
+ae2f_inline dice_tui_status_t dice_tui_render(void) {
     ae2f_unexpected_but_if(!(dice_tui_ctx.m_back && dice_tui_ctx.m_prev)) {
         return DICE_TUI_ERR_NULL_POINTER;
     }
